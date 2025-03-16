@@ -4,40 +4,39 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-public class TcpServer
+namespace Server.Services
 {
-    private readonly TcpListener _listener;
-
-    public TcpServer(int port)
+    public class TcpServer
     {
-        _listener = new TcpListener(IPAddress.Any, port);
-    }
+        private readonly TcpListener _listener;
 
-    public async Task StartAsync()
-    {
-        _listener.Start();
-        Console.WriteLine("Server is listening...");
-
-        while (true)
+        public TcpServer(int port)
         {
-            var client = await _listener.AcceptTcpClientAsync();
-            _ = HandleClientAsync(client);
+            _listener = new TcpListener(IPAddress.Any, port);
         }
-    }
 
-    private async Task HandleClientAsync(TcpClient client)
-    {
-        Console.WriteLine("Client connected!");
+        public async Task StartAsync()
+        {
+            _listener.Start();
+            Console.WriteLine("Server started...");
 
-        using var stream = client.GetStream();
-        byte[] buffer = new byte[1024];
+            while (true)
+            {
+                var client = await _listener.AcceptTcpClientAsync();
+                _ = HandleClientAsync(client);
+            }
+        }
 
-        int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-        string receivedMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        Console.WriteLine($"Received from Client: {receivedMessage}");
+        private async Task HandleClientAsync(TcpClient client)
+        {
+            using var stream = client.GetStream();
+            byte[] buffer = new byte[1024];
+            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            Console.WriteLine($"Received: {message}");
 
-        string response = "Hello from Server!";
-        byte[] responseData = Encoding.UTF8.GetBytes(response);
-        await stream.WriteAsync(responseData, 0, responseData.Length);
+            byte[] response = Encoding.UTF8.GetBytes("Hello from Server!");
+            await stream.WriteAsync(response, 0, response.Length);
+        }
     }
 }
