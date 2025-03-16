@@ -1,1 +1,13 @@
-.vscode
+.vscode/
+.vs/
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.log
+.idea/
+*.suo
+*.user
+*.vcxproj.user
+.env

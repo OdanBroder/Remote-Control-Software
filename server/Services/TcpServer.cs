@@ -1,27 +1,31 @@
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-class Program
+public class TcpServer
 {
-    static async Task Main()
-    {
-        int port = 5000;
-        var listener = new TcpListener(IPAddress.Any, port);
+    private readonly TcpListener _listener;
 
-        listener.Start();
-        Console.WriteLine($"Server started on port {port}...");
+    public TcpServer(int port)
+    {
+        _listener = new TcpListener(IPAddress.Any, port);
+    }
+
+    public async Task StartAsync()
+    {
+        _listener.Start();
+        Console.WriteLine("Server is listening...");
 
         while (true)
         {
-            TcpClient client = await listener.AcceptTcpClientAsync();
-            _ = HandleClientAsync(client); // Handle client asynchronously
+            var client = await _listener.AcceptTcpClientAsync();
+            _ = HandleClientAsync(client);
         }
     }
 
-    private static async Task HandleClientAsync(TcpClient client)
+    private async Task HandleClientAsync(TcpClient client)
     {
         Console.WriteLine("Client connected!");
 
