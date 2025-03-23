@@ -2,11 +2,35 @@ using System;
 using System.Linq;
 using System.Management;
 using System.Net.NetworkInformation;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Client.Src.Utils
 {
     public static class GetID
     {
+        public static string GetUniqueID()
+        {
+            string macAddress = GetMacAddress();
+            string biosSerial = GetBiosSerial();
+            string hddSerial = GetDiskDriveSerial();
+            string osInstallationId = GetOsInstallationId();
+            string cpuIdentifier = GetCpuIdentifier();
+            string infoMachine = macAddress + biosSerial + hddSerial + osInstallationId + cpuIdentifier;
+            // Hash the string to get a unique identifier
+            SHA256 mySHA256 = SHA256.Create();
+            byte[] hashValue = mySHA256.ComputeHash(Encoding.ASCII.GetBytes(infoMachine));
+            // Convert the byte array to hexadecimal string
+            StringBuilder hexString = new StringBuilder();
+            foreach (byte b in hashValue)
+            {
+                hexString.Append(b.ToString("x2"));
+            }
+            // Take the first 16 digits of the hex string and convert it to decimal value
+            string decimalValue = Convert.ToUInt64(hexString.ToString().Substring(0, 16), 16).ToString().Substring(0, 16);
+
+            return decimalValue;
+        }
         public static string GetMacAddress()
         {
             try
@@ -25,7 +49,7 @@ namespace Client.Src.Utils
             return GetWmiProperty("Win32_BIOS", "SerialNumber");
         }
 
-        public static string GetHddSerial()
+        public static string GetDiskDriveSerial()
         {
             return GetWmiProperty("Win32_DiskDrive", "SerialNumber");
         }

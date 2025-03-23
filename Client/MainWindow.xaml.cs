@@ -9,14 +9,13 @@ namespace Client
         public MainWindow()
         {
             InitializeComponent();
-            //CollectSystemInfo();
         }
 
         private void CollectSystemInfo()
         {
             string macAddress = GetID.GetMacAddress();
             string biosSerial = GetID.GetBiosSerial();
-            string hddSerial = GetID.GetHddSerial();
+            string hddSerial = GetID.GetDiskDriveSerial();
             string osInstallationId = GetID.GetOsInstallationId();
             string cpuIdentifier = GetID.GetCpuIdentifier();
 
@@ -28,6 +27,8 @@ namespace Client
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             CollectSystemInfo();
+            string id = GetID.GetUniqueID();
+            MessageBox.Show(id);
         }
     }
 }

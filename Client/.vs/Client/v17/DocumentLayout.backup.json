@@ -7,12 +7,12 @@
       "RelativeMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|solutionrelative:mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\src\\utils\\getid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|solutionrelative:src\\utils\\getid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|solutionrelative:mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\src\\utils\\getid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8E07AF73-89BE-4ED1-A133-336CC6E4667D}|Client.csproj|solutionrelative:src\\utils\\getid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -30,26 +30,28 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "getID.cs",
               "DocumentMoniker": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Src\\Utils\\getID.cs",
               "RelativeDocumentMoniker": "Src\\Utils\\getID.cs",
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Src\\Utils\\getID.cs",
               "RelativeToolTip": "Src\\Utils\\getID.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAQAAAAAAAAAAADwvxMAAAA4AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-23T09:02:25.218Z"
+              "WhenOpened": "2025-03-23T09:02:25.218Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "MainWindow.xaml",
               "DocumentMoniker": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\MainWindow.xaml",
               "RelativeDocumentMoniker": "MainWindow.xaml",
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\MainWindow.xaml",
               "RelativeToolTip": "MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-03-23T08:57:26.836Z"
+              "WhenOpened": "2025-03-23T08:57:26.836Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -59,7 +61,7 @@
               "RelativeDocumentMoniker": "MainWindow.xaml.cs",
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\MainWindow.xaml.cs",
               "RelativeToolTip": "MainWindow.xaml.cs",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAsAAAAiAAAAAAAAAA==",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAABYAAAA7AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-23T08:57:25.704Z",
               "EditorCaption": ""

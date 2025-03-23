@@ -36,9 +36,10 @@
               "RelativeDocumentMoniker": "Src\\Utils\\getID.cs",
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Src\\Utils\\getID.cs",
               "RelativeToolTip": "Src\\Utils\\getID.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAxAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-23T09:02:25.218Z"
+              "WhenOpened": "2025-03-23T09:02:25.218Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -49,7 +50,8 @@
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\MainWindow.xaml",
               "RelativeToolTip": "MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-03-23T08:57:26.836Z"
+              "WhenOpened": "2025-03-23T08:57:26.836Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -59,7 +61,7 @@
               "RelativeDocumentMoniker": "MainWindow.xaml.cs",
               "ToolTip": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\MainWindow.xaml.cs",
               "RelativeToolTip": "MainWindow.xaml.cs",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAuwAsAAAAiAAAAAAAAAA==",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAABAAAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-23T08:57:25.704Z",
               "EditorCaption": ""
