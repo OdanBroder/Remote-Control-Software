@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "WrdAzaDLC4U=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Client.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\DucAnh\\.nuget\\packages\\system.codedom\\7.0.0\\system.codedom.7.0.0.nupkg.sha512",
+    "C:\\Users\\DucAnh\\.nuget\\packages\\system.management\\7.0.0\\system.management.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
