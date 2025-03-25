@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "WrdAzaDLC4U=",
+  "dgSpecHash": "hhYwCtI4nDw=",
   "success": true,
-  "projectFilePath": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Client.csproj",
+  "projectFilePath": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\Client.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\DucAnh\\.nuget\\packages\\system.codedom\\7.0.0\\system.codedom.7.0.0.nupkg.sha512",
-    "C:\\Users\\DucAnh\\.nuget\\packages\\system.management\\7.0.0\\system.management.7.0.0.nupkg.sha512"
+    "C:\\Users\\Asus-FPT\\.nuget\\packages\\fontawesome.sharp\\6.6.0\\fontawesome.sharp.6.6.0.nupkg.sha512",
+    "C:\\Users\\Asus-FPT\\.nuget\\packages\\system.codedom\\9.0.3\\system.codedom.9.0.3.nupkg.sha512",
+    "C:\\Users\\Asus-FPT\\.nuget\\packages\\system.management\\9.0.3\\system.management.9.0.3.nupkg.sha512"
   ],
   "logs": []
 }

@@ -15,3 +15,26 @@ C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\obj\Debug\Cli
 C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\obj\Debug\Client.pdb
 C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\bin\Debug\System.CodeDom.dll
 C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\obj\Debug\Client.csproj.Up2Date
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\bin\Debug\Client.exe.config
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\bin\Debug\Client.exe
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\bin\Debug\Client.pdb
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\bin\Debug\System.CodeDom.dll
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.AssemblyReference.cache
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\App.g.cs
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client_MarkupCompile.cache
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client_MarkupCompile.lref
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.g.resources
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.Properties.Resources.resources
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.GenerateResource.cache
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.CoreCompileInputs.cache
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.Up2Date
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.exe
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\Client\obj\Debug\Client.pdb
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Styles\UIColors.baml
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\App.baml
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\bin\Debug\FontAwesome.Sharp.dll
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Styles\ButtonStyles.baml
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\ViewModels\MainViewModel.g.cs
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\ViewModels\MainViewModel.baml
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Views\MainView.g.cs
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Views\MainView.baml

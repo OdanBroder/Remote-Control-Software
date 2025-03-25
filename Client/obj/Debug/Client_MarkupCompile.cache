@@ -4,17 +4,17 @@
 winexe
 C#
 .cs
-C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\obj\Debug\
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\
 Client
 none
 false
 DEBUG;TRACE
-C:\Users\DucAnh\OneDrive\Documents\Study\UIT\hk4\LTMCB\Test\Client\App.xaml
-1219584333
+D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\App.xaml
+4729196144
 
-6-1052773991
-15-1866622132
-MainWindow.xaml;
+7-1156656098
+17171921771
+Styles\ButtonStyles.xaml;Styles\UIColors.xaml;ViewModels\MainViewModel.xaml;Views\MainView.xaml;
 
 False
 

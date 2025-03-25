@@ -2,7 +2,23 @@
   "version": 3,
   "targets": {
     ".NETFramework,Version=v4.8": {
-      "System.CodeDom/7.0.0": {
+      "FontAwesome.Sharp/6.6.0": {
+        "type": "package",
+        "frameworkAssemblies": [
+          "PresentationCore",
+          "PresentationFramework",
+          "System.Windows.Forms",
+          "System.Xaml",
+          "WindowsBase"
+        ],
+        "compile": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        },
+        "runtime": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        }
+      },
+      "System.CodeDom/9.0.3": {
         "type": "package",
         "compile": {
           "lib/net462/System.CodeDom.dll": {
@@ -18,10 +34,10 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.Management/7.0.0": {
+      "System.Management/9.0.3": {
         "type": "package",
         "dependencies": {
-          "System.CodeDom": "7.0.0"
+          "System.CodeDom": "9.0.3"
         },
         "frameworkAssemblies": [
           "System.Management"
@@ -35,7 +51,23 @@
       }
     },
     ".NETFramework,Version=v4.8/win": {
-      "System.CodeDom/7.0.0": {
+      "FontAwesome.Sharp/6.6.0": {
+        "type": "package",
+        "frameworkAssemblies": [
+          "PresentationCore",
+          "PresentationFramework",
+          "System.Windows.Forms",
+          "System.Xaml",
+          "WindowsBase"
+        ],
+        "compile": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        },
+        "runtime": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        }
+      },
+      "System.CodeDom/9.0.3": {
         "type": "package",
         "compile": {
           "lib/net462/System.CodeDom.dll": {
@@ -51,10 +83,10 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.Management/7.0.0": {
+      "System.Management/9.0.3": {
         "type": "package",
         "dependencies": {
-          "System.CodeDom": "7.0.0"
+          "System.CodeDom": "9.0.3"
         },
         "frameworkAssemblies": [
           "System.Management"
@@ -68,7 +100,23 @@
       }
     },
     ".NETFramework,Version=v4.8/win-arm64": {
-      "System.CodeDom/7.0.0": {
+      "FontAwesome.Sharp/6.6.0": {
+        "type": "package",
+        "frameworkAssemblies": [
+          "PresentationCore",
+          "PresentationFramework",
+          "System.Windows.Forms",
+          "System.Xaml",
+          "WindowsBase"
+        ],
+        "compile": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        },
+        "runtime": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        }
+      },
+      "System.CodeDom/9.0.3": {
         "type": "package",
         "compile": {
           "lib/net462/System.CodeDom.dll": {
@@ -84,10 +132,10 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.Management/7.0.0": {
+      "System.Management/9.0.3": {
         "type": "package",
         "dependencies": {
-          "System.CodeDom": "7.0.0"
+          "System.CodeDom": "9.0.3"
         },
         "frameworkAssemblies": [
           "System.Management"
@@ -101,7 +149,23 @@
       }
     },
     ".NETFramework,Version=v4.8/win-x64": {
-      "System.CodeDom/7.0.0": {
+      "FontAwesome.Sharp/6.6.0": {
+        "type": "package",
+        "frameworkAssemblies": [
+          "PresentationCore",
+          "PresentationFramework",
+          "System.Windows.Forms",
+          "System.Xaml",
+          "WindowsBase"
+        ],
+        "compile": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        },
+        "runtime": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        }
+      },
+      "System.CodeDom/9.0.3": {
         "type": "package",
         "compile": {
           "lib/net462/System.CodeDom.dll": {
@@ -117,10 +181,10 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.Management/7.0.0": {
+      "System.Management/9.0.3": {
         "type": "package",
         "dependencies": {
-          "System.CodeDom": "7.0.0"
+          "System.CodeDom": "9.0.3"
         },
         "frameworkAssemblies": [
           "System.Management"
@@ -134,7 +198,23 @@
       }
     },
     ".NETFramework,Version=v4.8/win-x86": {
-      "System.CodeDom/7.0.0": {
+      "FontAwesome.Sharp/6.6.0": {
+        "type": "package",
+        "frameworkAssemblies": [
+          "PresentationCore",
+          "PresentationFramework",
+          "System.Windows.Forms",
+          "System.Xaml",
+          "WindowsBase"
+        ],
+        "compile": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        },
+        "runtime": {
+          "lib/net48/FontAwesome.Sharp.dll": {}
+        }
+      },
+      "System.CodeDom/9.0.3": {
         "type": "package",
         "compile": {
           "lib/net462/System.CodeDom.dll": {
@@ -150,10 +230,10 @@
           "buildTransitive/net462/_._": {}
         }
       },
-      "System.Management/7.0.0": {
+      "System.Management/9.0.3": {
         "type": "package",
         "dependencies": {
-          "System.CodeDom": "7.0.0"
+          "System.CodeDom": "9.0.3"
         },
         "frameworkAssemblies": [
           "System.Management"
@@ -168,57 +248,76 @@
     }
   },
   "libraries": {
-    "System.CodeDom/7.0.0": {
-      "sha512": "GLltyqEsE5/3IE+zYRP5sNa1l44qKl9v+bfdMcwg+M9qnQf47wK3H0SUR/T+3N4JEQXF3vV4CSuuo0rsg+nq2A==",
+    "FontAwesome.Sharp/6.6.0": {
+      "sha512": "bJCb2x73UC1nD9+9iMLaUy6Ujf9Pf+buL6FHwVnaoDYT4CQNLazz59hO5gQ0+SMSW0G+ZXmjjShOYr3Jn2UZiw==",
       "type": "package",
-      "path": "system.codedom/7.0.0",
+      "path": "fontawesome.sharp/6.6.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontawesome.sharp.6.6.0.nupkg.sha512",
+        "fontawesome.sharp.nuspec",
+        "lib/net472/FontAwesome.Sharp.dll",
+        "lib/net48/FontAwesome.Sharp.dll",
+        "lib/net6.0-windows7.0/FontAwesome.Sharp.dll",
+        "lib/net7.0-windows7.0/FontAwesome.Sharp.dll",
+        "lib/net8.0-windows7.0/FontAwesome.Sharp.dll",
+        "lib/netcoreapp3.1/FontAwesome.Sharp.dll"
+      ]
+    },
+    "System.CodeDom/9.0.3": {
+      "sha512": "KeFk4+is5IB3FCjFmPjtFYaTSYhFA/l6ZOeWBQo6CVVQchpvl6vv+3kPPfNttkEoA/Gq78FsJFMu4Eej/ln44Q==",
+      "type": "package",
+      "path": "system.codedom/9.0.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
         "LICENSE.TXT",
+        "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
         "buildTransitive/net461/System.CodeDom.targets",
         "buildTransitive/net462/_._",
-        "buildTransitive/net6.0/_._",
+        "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/System.CodeDom.targets",
         "lib/net462/System.CodeDom.dll",
         "lib/net462/System.CodeDom.xml",
-        "lib/net6.0/System.CodeDom.dll",
-        "lib/net6.0/System.CodeDom.xml",
-        "lib/net7.0/System.CodeDom.dll",
-        "lib/net7.0/System.CodeDom.xml",
+        "lib/net8.0/System.CodeDom.dll",
+        "lib/net8.0/System.CodeDom.xml",
+        "lib/net9.0/System.CodeDom.dll",
+        "lib/net9.0/System.CodeDom.xml",
         "lib/netstandard2.0/System.CodeDom.dll",
         "lib/netstandard2.0/System.CodeDom.xml",
-        "system.codedom.7.0.0.nupkg.sha512",
+        "system.codedom.9.0.3.nupkg.sha512",
         "system.codedom.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Management/7.0.0": {
-      "sha512": "A4jed4QUviDOm7fJNKAJObEAEkEUXmkGL/w0iyCYTzrl1rezTj8LGFHfsVst4Vb9JwFcTpboiDrvdST48avBpw==",
+    "System.Management/9.0.3": {
+      "sha512": "Wsb47+pRN1xnCxKOXcj+80FZ5OYQK2Dr8nnS8CHS1LVB+MXdzyK90sEmDYs/ux+btrxpE1N56FZo5rDbzpd1HA==",
       "type": "package",
-      "path": "system.management/7.0.0",
+      "path": "system.management/9.0.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
         "LICENSE.TXT",
+        "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/net6.0/_._",
+        "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/System.Management.targets",
         "lib/net462/_._",
-        "lib/net6.0/System.Management.dll",
-        "lib/net6.0/System.Management.xml",
-        "lib/net7.0/System.Management.dll",
-        "lib/net7.0/System.Management.xml",
+        "lib/net8.0/System.Management.dll",
+        "lib/net8.0/System.Management.xml",
+        "lib/net9.0/System.Management.dll",
+        "lib/net9.0/System.Management.xml",
         "lib/netstandard2.0/System.Management.dll",
         "lib/netstandard2.0/System.Management.xml",
-        "runtimes/win/lib/net6.0/System.Management.dll",
-        "runtimes/win/lib/net6.0/System.Management.xml",
-        "runtimes/win/lib/net7.0/System.Management.dll",
-        "runtimes/win/lib/net7.0/System.Management.xml",
-        "system.management.7.0.0.nupkg.sha512",
+        "runtimes/win/lib/net8.0/System.Management.dll",
+        "runtimes/win/lib/net8.0/System.Management.xml",
+        "runtimes/win/lib/net9.0/System.Management.dll",
+        "runtimes/win/lib/net9.0/System.Management.xml",
+        "system.management.9.0.3.nupkg.sha512",
         "system.management.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -226,21 +325,22 @@
   },
   "projectFileDependencyGroups": {
     ".NETFramework,Version=v4.8": [
-      "System.Management >= 7.0.0"
+      "FontAwesome.Sharp >= 6.6.0",
+      "System.Management >= 9.0.3"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\DucAnh\\.nuget\\packages\\": {},
+    "C:\\Users\\Asus-FPT\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Client.csproj",
+      "projectUniqueName": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\Client.csproj",
       "projectName": "Client",
-      "projectPath": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\Client.csproj",
-      "packagesPath": "C:\\Users\\DucAnh\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\DucAnh\\OneDrive\\Documents\\Study\\UIT\\hk4\\LTMCB\\Test\\Client\\obj\\",
+      "projectPath": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\Client.csproj",
+      "packagesPath": "C:\\Users\\Asus-FPT\\.nuget\\packages\\",
+      "outputPath": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\obj\\",
       "projectStyle": "PackageReference",
       "skipContentFileWrite": true,
       "UsingMicrosoftNETSdk": false,
@@ -248,7 +348,7 @@
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\DucAnh\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Asus-FPT\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -273,9 +373,13 @@
     "frameworks": {
       "net48": {
         "dependencies": {
+          "FontAwesome.Sharp": {
+            "target": "Package",
+            "version": "[6.6.0, )"
+          },
           "System.Management": {
             "target": "Package",
-            "version": "[7.0.0, )"
+            "version": "[9.0.3, )"
           }
         }
       }
