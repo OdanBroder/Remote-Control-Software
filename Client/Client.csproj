@@ -117,6 +117,8 @@
     </PackageReference>
     <PackageReference Include="System.Management" Version="9.0.3" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Images\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
