@@ -1,6 +1,6 @@
 @Server_HostAddress = http://localhost:5031
 
-GET {{Server_HostAddress}}/weatherforecast/
+GET {{Server_HostAddress}}/remote-control-access/
 Accept: application/json
 
 ###

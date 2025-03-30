@@ -47,6 +47,8 @@ builder.Services.AddSingleton<RemoteSessionService>();
 builder.Services.AddSingleton<ScreenCaptureService>();
 builder.Services.AddSingleton<InputHandlerService>();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure middleware
@@ -61,13 +63,7 @@ app.UseAuthorization();
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
-    endpoints.MapHub<RemoteControlHub>("/remoteControlHub");
+    endpoints.MapHub<RemoteControlHub>("/remote-control-access");
 });
 
 app.Run();
-
-// Next Steps:
-// 1. Implement frontend WPF client to connect via SignalR.
-// 2. Secure API with authentication (JWT/OAuth).
-// 3. Optimize screen sharing by using efficient encoding & compression.
-// 4. Implement WebSocket middleware for custom handling if needed.
