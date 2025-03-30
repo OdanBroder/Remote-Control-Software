@@ -10,7 +10,7 @@ public class Client
     public Client()
     {
         _connection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5000/remote-control-access") // Server URL
+            .WithUrl("http://localhost:5031/remote-control-access") // Server URL
             .Build();
     }
 
