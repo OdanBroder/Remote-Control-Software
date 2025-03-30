@@ -38,3 +38,26 @@ D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\
 D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\ViewModels\MainViewModel.baml
 D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Views\MainView.g.cs
 D:\UIT\Semester4\Lập Trình Mạng Căn Bản\Project\Remote-Control-Software\client\obj\Debug\Views\MainView.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\bin\Debug\Client.exe.config
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\bin\Debug\Client.exe
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\bin\Debug\Client.pdb
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\bin\Debug\FontAwesome.Sharp.dll
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\bin\Debug\System.CodeDom.dll
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.AssemblyReference.cache
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Styles\ButtonStyles.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Styles\UIColors.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\ViewModels\MainViewModel.g.cs
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Views\MainView.g.cs
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\App.g.cs
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client_MarkupCompile.cache
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client_MarkupCompile.lref
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\App.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\ViewModels\MainViewModel.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Views\MainView.baml
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.g.resources
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.Properties.Resources.resources
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.GenerateResource.cache
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.CoreCompileInputs.cache
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.csproj.Up2Date
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.exe
+D:\UIT\hk4\LTMCB\Project\Remote-Control-Software\Client\obj\Debug\Client.pdb

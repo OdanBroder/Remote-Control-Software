@@ -330,17 +330,17 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Asus-FPT\\.nuget\\packages\\": {},
+    "C:\\Users\\DucAnh\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\Client.csproj",
+      "projectUniqueName": "D:\\UIT\\hk4\\LTMCB\\Project\\Remote-Control-Software\\Client\\Client.csproj",
       "projectName": "Client",
-      "projectPath": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\Client.csproj",
-      "packagesPath": "C:\\Users\\Asus-FPT\\.nuget\\packages\\",
-      "outputPath": "D:\\UIT\\Semester4\\Lập Trình Mạng Căn Bản\\Project\\Remote-Control-Software\\client\\obj\\",
+      "projectPath": "D:\\UIT\\hk4\\LTMCB\\Project\\Remote-Control-Software\\Client\\Client.csproj",
+      "packagesPath": "C:\\Users\\DucAnh\\.nuget\\packages\\",
+      "outputPath": "D:\\UIT\\hk4\\LTMCB\\Project\\Remote-Control-Software\\Client\\obj\\",
       "projectStyle": "PackageReference",
       "skipContentFileWrite": true,
       "UsingMicrosoftNETSdk": false,
@@ -348,7 +348,7 @@
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Asus-FPT\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\DucAnh\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

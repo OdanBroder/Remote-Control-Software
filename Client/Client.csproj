@@ -110,6 +110,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Src\Utils\getID.cs" />
+    <Compile Include="Src\Services\connect.cs" />
+    <Compile Include="Src\Services\connect2server.cs" />
+    <Compile Include="Src\GlobalConfig.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FontAwesome.Sharp">
