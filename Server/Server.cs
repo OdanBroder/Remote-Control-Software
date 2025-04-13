@@ -1,13 +1,12 @@
-// Client/Client.cs (WPF Client for SignalR Connection)
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Threading.Tasks;
 
-public class Client
+public class RemoteControlClient
 {
     private HubConnection _connection;
 
-    public Client()
+    public RemoteControlClient()
     {
         _connection = new HubConnectionBuilder()
             .WithUrl("http://localhost:5031/remote-control-access") // Server URL
