@@ -63,6 +63,10 @@
                         <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
                     </LinearGradientBrush>
                 </Border.Background>
+                <StackPanel>
+                    <Button x:Name="Stream_button" Content="Start Streaming" Width="220" Height="67" Click="StartButton_Click"/>
+                    <Button x:Name="Stop_button" Content="Stop Streaming" Width="216" Height="70" Click="StopButton_Click"/>
+                </StackPanel>
             </Border>
 
             <!--Menu Button-->
@@ -88,7 +92,6 @@
                 </StackPanel>
             </RadioButton>
         </Grid>
-
 
     </Border>
 </Window>

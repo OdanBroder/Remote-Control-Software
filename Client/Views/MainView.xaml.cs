@@ -13,6 +13,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Client.Src.Utils;
 using Client.Src.Services;
+using ScreenCaptureLibrary;
+using System.Text.RegularExpressions;
 
 
 
@@ -23,9 +25,23 @@ namespace Client.Views
     /// </summary>
     public partial class MainView : Window
     {
+        private ScreenCapture screenCapture;
         public MainView()
         {
             InitializeComponent();
+            screenCapture = new ScreenCapture();
+        }
+
+        private void StartButton_Click(object sender, RoutedEventArgs e)
+        {
+            screenCapture.StartStreaming(40);
+        }
+
+        private void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            screenCapture.StopStreaming();
+            screenCapture.Dispose();
+            
         }
     }
 }
