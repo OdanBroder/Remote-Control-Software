@@ -9,13 +9,15 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
+using SIPSorceryMedia.Abstractions;
+using Server.Models;
 
 namespace Server.Services
 {
     public class ScreenCaptureService : IDisposable
     {
         private readonly ILogger<ScreenCaptureService> _logger;
-        private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections;
+        private readonly ConcurrentDictionary<string, (RTCPeerConnection, MediaStreamTrack)> _peerConnections;
         private readonly string _rtmpUrl;
         private readonly string _hlsOutputPath;
         private readonly int _frameRate;
@@ -59,7 +61,7 @@ namespace Server.Services
             Size? captureSize = null)
         {
             _logger = logger;
-            _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
+            _peerConnections = new ConcurrentDictionary<string, (RTCPeerConnection, MediaStreamTrack)>();
             _rtmpUrl = rtmpUrl;
             _hlsOutputPath = hlsOutputPath;
             _frameRate = frameRate;
@@ -88,7 +90,7 @@ namespace Server.Services
                 var ffmpegProcess = StartFFmpegProcess();
 
                 // Start screen capture and streaming loop
-                _ = Task.Run(async () =>
+                await Task.Run(async () =>
                 {
                     while (!_streamingCts.Token.IsCancellationRequested)
                     {
@@ -142,13 +144,13 @@ namespace Server.Services
             });
 
             // Add video track
-            var videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPMediaFormat> 
+            var videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> 
             { 
-                new SDPMediaFormat(SDPMediaFormatsEnum.VP8)
+                new SDPAudioVideoMediaFormat(SDPMediaTypesEnum.video, 96, "VP8", 90000)
             });
-
             pc.addTrack(videoTrack);
-
+            _peerConnections.TryAdd(sessionId, (pc, videoTrack));
+            
             // Set up event handlers
             pc.onconnectionstatechange += (state) =>
             {
@@ -159,9 +161,11 @@ namespace Server.Services
                 }
             };
 
-            _peerConnections.TryAdd(sessionId, pc);
+            // Return the task (even if it's done synchronously)
+            await Task.CompletedTask;
             return pc;
         }
+
 
         private byte[] CaptureScreen()
         {
@@ -223,15 +227,11 @@ namespace Server.Services
             await ffmpegProcess.StandardInput.BaseStream.WriteAsync(frame, 0, frame.Length);
 
             // Send frame to WebRTC connections
-            foreach (var pc in _peerConnections.Values)
+            foreach (var (pc, track) in _peerConnections.Values)
             {
                 try
                 {
-                    var videoTrack = pc.GetVideoTracks().FirstOrDefault();
-                    if (videoTrack != null)
-                    {
-                        await videoTrack.SendVideoFrame(frame, _captureSize.Width, _captureSize.Height);
-                    }
+                    // track.SendVideo(_captureSize.Width, _captureSize.Height, frame);
                 }
                 catch (Exception ex)
                 {
@@ -243,7 +243,7 @@ namespace Server.Services
         public void Dispose()
         {
             StopStreaming();
-            foreach (var pc in _peerConnections.Values)
+            foreach (var (pc, track) in _peerConnections.Values)
             {
                 pc.Close("normal");
             }
