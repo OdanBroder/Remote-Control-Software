@@ -8,6 +8,8 @@ namespace Server.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int InternalId { get; set; }
+
+        [MaxLength(36)]
         public string? Id { get; set; }
 
         [Required]

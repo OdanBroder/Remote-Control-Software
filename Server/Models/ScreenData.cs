@@ -12,13 +12,15 @@ namespace Server.Models
         [Required]
         public int SessionId { get; set; }
 
+        [NotMapped]
+        public string SessionIdentifier { get; set; } = string.Empty;
+
         [Required]
-        [Column(TypeName = "longtext")]
-        public required string Data { get; set; }
+        public string Data { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; }
 
         [ForeignKey("SessionId")]
-        public RemoteSession Session { get; set; } = null!;
+        public RemoteSession? Session { get; set; }
     }
 }
