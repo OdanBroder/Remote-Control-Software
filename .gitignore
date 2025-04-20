@@ -1,5 +1,9 @@
-.vs
-obj/
-bin/
-.vscode
+.vs/
+.vscode/
 .env
+
+**/bin/
+**/obj/
+.nuget/
+packages/
+*.nupkg
