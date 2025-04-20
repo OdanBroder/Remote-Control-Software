@@ -68,6 +68,8 @@ namespace Server.Services
                     session.ClientConnectionId = null;
                     session.UpdatedAt = DateTime.UtcNow;
                     _logger.LogInformation($"Client disconnected from session {sessionId}");
+                } else {
+                    _logger.LogWarning($"Connection {connectionId} not authorized for session {sessionId}");
                 }
 
                 if (session.HostConnectionId == null && session.ClientConnectionId == null)
@@ -86,7 +88,11 @@ namespace Server.Services
         public Task<string?> GetSessionId(string connectionId)
         {
             _connectionToSession.TryGetValue(connectionId, out var sessionId);
-            return Task.FromResult(sessionId);
+            if(sessionId == null) {
+                _logger.LogWarning($"Connection {connectionId} not found in session");
+                return Task.FromResult<string?>(null);
+            }
+            return Task.FromResult<string?>(sessionId);
         }
 
         public Task<bool> ValidateSession(string sessionId, string connectionId)

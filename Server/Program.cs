@@ -41,7 +41,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<RemoteSessionService>();
-builder.Services.AddSingleton<ScreenCaptureService>();
+// builder.Services.AddSingleton<ScreenCaptureService>();
 builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
