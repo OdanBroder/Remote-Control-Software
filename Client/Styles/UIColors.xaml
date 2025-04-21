@@ -28,7 +28,7 @@
     <SolidColorBrush x:Key="titleColor1" Color="#E0E1F1"/>
     <SolidColorBrush x:Key="titleColor2" Color="#200F53"/>
     <SolidColorBrush x:Key="titleColor3" Color="#BCBEE0"/>
-    <SolidColorBrush x:Key="plainTextColor1" Color="#9497CD"/>
+    <SolidColorBrush x:Key="plainTextColor1" Color="#FB539B"/>
     <SolidColorBrush x:Key="plainTextColor2" Color="#7C80C2"/>
     <SolidColorBrush x:Key="plainTextColor3" Color="#7376BD"/>
 
