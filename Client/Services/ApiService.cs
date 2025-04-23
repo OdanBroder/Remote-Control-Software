@@ -1,42 +1,69 @@
 ﻿using System;
 using System.Net.Http;
-using Newtonsoft.Json;
-using System.Threading.Tasks;
-using Client.Models;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
+using Client.Helpers;
+using Client.Models;
+using Newtonsoft.Json;
 
 namespace Client.Services
 {
     public class ApiService
     {
-        private static ApiService _instance;
-        public static ApiService Instance => _instance ??= new ApiService();
+        private readonly HttpClient _httpClient;
+        private readonly string baseUrl = AppSettings.BaseApiUri + "/api";
 
-        private readonly HttpClient _http;
-
-        private ApiService()
+        public ApiService()
         {
-            _http = new HttpClient
+            var handler = new HttpClientHandler
             {
-                BaseAddress = new Uri("http://localhost:5000/api/") // Replace with your API base URL
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
             };
+            _httpClient = new HttpClient(handler);
+
+            _httpClient.DefaultRequestHeaders.Accept.Clear();
+            _httpClient.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-        public async Task<AuthResponse?> LoginAsync(string username, string password)
+        public async Task<AuthResponse> LoginAsync(LoginRequest request)
         {
-            var request = new LoginRequest { Username = username, Password = password };
             var json = JsonConvert.SerializeObject(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _http.PostAsJsonAsync("auth/login", content);
-            if (response.IsSuccessStatusCode)
+
+            HttpResponseMessage response;
+            try
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<AuthResponse>(responseContent);
-                return result;
-                // return await response.Content.ReadFromJsonAsync<AuthResponse>(); //.Net 5+
+                response = await _httpClient.PostAsync($"{baseUrl}/auth/login", content);
+            }
+            catch (Exception ex)
+            {
+                Console.Write(baseUrl);
+                Console.WriteLine(ex.Message);
+                throw new HttpRequestException(
+                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
             }
 
-            return null;
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    dynamic err = JsonConvert.DeserializeObject(responseString);
+                    string msg = err?.message ?? $"Lỗi {response.StatusCode}";
+                    throw new HttpRequestException(msg);
+                }
+                catch
+                {
+                    throw new HttpRequestException(
+                        $"({response.StatusCode}): {responseString}");
+                }
+            }
+
+            return JsonConvert.DeserializeObject<AuthResponse>(responseString);
         }
     }
 }

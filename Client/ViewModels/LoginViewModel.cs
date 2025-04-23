@@ -1,68 +1,128 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Client.Helpers;
-using Client.Services;
 using Client.Models;
-using System.Windows.Forms.Design;
+using Client.Services;
+using Client.Helpers;
 
 namespace Client.ViewModels
 {
     public class LoginViewModel : INotifyPropertyChanged
     {
+        private readonly ApiService _apiService = new ApiService();
+
         private string _username = "";
         private string _password = "";
+        private string _errorMessage = "";
+        private bool _isLoggingIn;
+        private bool _isViewVisible = true;
 
         public string Username
         {
             get => _username;
-            set { _username = value; OnPropertyChanged(); }
+            set
+            {
+                _username = value;
+                OnPropertyChanged();
+                RaiseCanExecuteChanged();
+            }
         }
 
         public string Password
         {
             get => _password;
-            set { _password = value; OnPropertyChanged(); }
+            set
+            {
+                _password = value;
+                OnPropertyChanged();
+                RaiseCanExecuteChanged();
+            }
+        }
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set { _errorMessage = value; OnPropertyChanged(); }
+        }
+
+        public bool IsLoggingIn
+        {
+            get => _isLoggingIn;
+            set
+            {
+                _isLoggingIn = value;
+                OnPropertyChanged();
+                RaiseCanExecuteChanged();
+            }
+        }
+
+        public bool IsViewVisible
+        {
+            get => _isViewVisible;
+            set { _isViewVisible = value; OnPropertyChanged(); }
         }
 
         public ICommand LoginCommand { get; }
 
         public LoginViewModel()
         {
-            LoginCommand = new RelayCommand(async (_) => await LoginAsync());
+            LoginCommand = new AsyncRelayCommand(async obj => await ExecuteLogin(), obj => CanExecuteLogin());
         }
 
-        private async Task LoginAsync()
+        private bool CanExecuteLogin()
         {
-            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+            return !IsLoggingIn && !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
+        }
+
+        private async Task ExecuteLogin()
+        {
+            IsLoggingIn = true;
+            ErrorMessage = "";
+            OnPropertyChanged(nameof(ErrorMessage));
+
+            try
             {
-                MessageBox.Show("Please enter both username and password.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                var loginRequest = new LoginRequest
+                {
+                    Username = Username,
+                    Password = Password
+                };
+
+                var result = await _apiService.LoginAsync(loginRequest);
+
+                MessageBox.Show("Đăng nhập thành công!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                // TODO: Lưu token / điều hướng MainView
             }
-
-            var result = await ApiService.Instance.LoginAsync(Username, Password);
-            if (result != null)
+            catch (HttpRequestException ex)
             {
-                // Store token and user info if needed
-                //TokenStorage.AccessToken = result.Token;
-                //TokenStorage.Username = result.Username;
-
-                MessageBox.Show($"Login successful! Welcome, {result.Username}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // TODO: Navigate to MainView or dashboard
+                ErrorMessage = ex.Message;
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Login failed. Please check your credentials.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ErrorMessage = "Lỗi không xác định: " + ex.Message;
+            }
+            finally
+            {
+                IsLoggingIn = false;
             }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        private void RaiseCanExecuteChanged()
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            if (LoginCommand is AsyncRelayCommand asyncCmd)
+            {
+                asyncCmd.RaiseCanExecuteChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
     }
 }

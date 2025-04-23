@@ -60,7 +60,8 @@
     <Compile Include="CustomControls\BindablePasswordBox.xaml.cs">
       <DependentUpon>BindablePasswordBox.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Helper\RelayCommand.cs" />
+    <Compile Include="Helpers\AppSettings.cs" />
+    <Compile Include="Helpers\AsyncRelayCommand.cs" />
     <Compile Include="Models\AuthResponse.cs" />
     <Compile Include="Models\LoginRequest.cs" />
     <Compile Include="Models\UserAccountModel.cs" />
@@ -141,9 +142,6 @@
       <Version>13.0.3</Version>
     </PackageReference>
     <PackageReference Include="System.Management" Version="9.0.3" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="Images\back-image.png" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Images\key-icon.png" />
