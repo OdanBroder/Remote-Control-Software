@@ -206,10 +206,10 @@
                                Margin="0,10,0,0"
                                TextWrapping="Wrap"/>
 
-                    <Button x:Name="btnLogin" 
-                            Command="{Binding LoginCommand}"
+                    <Button x:Name="btnRegister" 
+                            Command="{Binding RegisterCommand}"
                             BorderThickness="0"
-                            Content="LOG IN"
+                            Content="SIGN UP"
                             Foreground="White"
                             FontSize="12"
                             FontFamily="Montserrat"

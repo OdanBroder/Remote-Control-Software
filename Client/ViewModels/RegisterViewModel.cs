@@ -17,18 +17,11 @@ namespace Client.ViewModels
     {
         private readonly ApiService _apiService = new ApiService();
 
-        private string _name = string.Empty;
         private string _username = string.Empty;
         private string _password = string.Empty;
         private string _errorMessage;
         private bool _isRegistering;
         private bool _isViewVisible = true;
-
-        public string Name
-        {
-            get => _name;
-            set { _name = value; OnPropertyChanged(); RaiseCanExecuteChanged(); }
-        }
 
         public string Username
         {
@@ -71,7 +64,6 @@ namespace Client.ViewModels
 
         private bool CanExecuteRegister()
             => !IsRegistering
-               && !string.IsNullOrWhiteSpace(Name)
                && !string.IsNullOrWhiteSpace(Username)
                && !string.IsNullOrWhiteSpace(Password);
 
