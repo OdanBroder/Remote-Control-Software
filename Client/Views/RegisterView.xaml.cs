@@ -14,19 +14,17 @@ using System.Windows.Shapes;
 
 namespace Client.Views
 {
-    public partial class LoginView : Window
+    public partial class RegisterView : Window
     {
-        public LoginView()
+        public RegisterView()
         {
             InitializeComponent();
         }
-
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
                 DragMove();
         }
-
         private void btnMinimize_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
@@ -36,10 +34,11 @@ namespace Client.Views
         {
             Application.Current.Shutdown();
         }
-        private void OnGoToRegister(object sender, RoutedEventArgs e)
+
+        private void OnGoToLogin(object sender, RoutedEventArgs e)
         {
-            var register = new RegisterView();
-            register.Show();
+            var loginView = new LoginView();
+            loginView.Show();
             this.Close();
         }
     }
