@@ -1,41 +1,26 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Server.Services;
-using Server.Hubs;
-using Server.Controllers;
-using Server.Models;
-using Server.Middleware;
-
+//using Server.Hubs;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
-builder.Services.AddControllers();
+// Serilog
+Log.Logger = new LoggerConfiguration()
+  .MinimumLevel.Debug()
+  .WriteTo.Console()
+  .WriteTo.File("logs/server.txt", rollingInterval: RollingInterval.Day)
+  .CreateLogger();
+builder.Host.UseSerilog();
+
+// Đăng ký SignalR và WebRTCServer
 builder.Services.AddSignalR();
-builder.Services.AddSingleton<RemoteSessionService>();
-builder.Services.AddSingleton<ScreenCaptureService>();
-builder.Services.AddSingleton<InputHandlerService>();
+builder.Services.AddSingleton<WebRTCServer>();
+builder.Services.AddSingleton<Serilog.ILogger>(Log.Logger);
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 var app = builder.Build();
-
-// Configure middleware
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
-
 app.UseRouting();
-app.UseAuthorization();
-
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-    endpoints.MapHub<RemoteControlHub>("/remote-control-access");
-});
-
-app.Run();
+app.UseSerilogRequestLogging();
+app.MapHub<RemoteControlHub>("/signal");
+app.Run("http://localhost:5000");

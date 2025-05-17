@@ -1,16 +1,25 @@
+﻿// Server/Hubs/RemoteControlHub.cs
 using Microsoft.AspNetCore.SignalR;
+using System.Threading.Tasks;
 
-namespace Server.Hubs
+public class RemoteControlHub : Hub
 {
-    public class RemoteControlHub : Hub
+    private readonly WebRTCServer _webrtc;
+
+    public RemoteControlHub(WebRTCServer webrtc)
     {
-        public async Task SendScreenData(string sessionId, byte[] imageData)
-        {
-            await Clients.Others.SendAsync("ReceiveScreenData", sessionId, imageData);
-        }
-        public async Task SendInputAction(string sessionId, string action)
-        {
-            await Clients.Others.SendAsync("ReceiveInputAction", sessionId, action);
-        }
+        _webrtc = webrtc;
+    }
+
+    // Client gọi SendSdp(offer, "offer") hoặc ("answer")
+    public async Task SendSdp(string sdp, string type)
+    {
+        await _webrtc.HandleSdpAsync(Context.ConnectionId, sdp, type);
+    }
+
+    // Client gọi SendIceCandidate(...)
+    public async Task SendIceCandidate(string candidate, string sdpMid, int sdpMlineIndex)
+    {
+        await _webrtc.HandleIceCandidateAsync(Context.ConnectionId, candidate, sdpMid, sdpMlineIndex);
     }
 }
