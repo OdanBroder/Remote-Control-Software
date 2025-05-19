@@ -43,6 +43,8 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<RemoteSessionService>();
 builder.Services.AddScoped<FileTransferService>();
+builder.Services.AddScoped<SessionQualityService>();
+builder.Services.AddScoped<SecurityService>();
 // builder.Services.AddSingleton<ScreenCaptureService>();
 builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
@@ -80,6 +82,7 @@ app.UseAuthorization();
 
 // Add token blacklist middleware
 app.UseMiddleware<TokenBlacklistMiddleware>();
+app.UseMiddleware<IpWhitelistMiddleware>();
 
 app.MapControllers();
 app.MapHub<RemoteControlHub>("/remote-control-access");

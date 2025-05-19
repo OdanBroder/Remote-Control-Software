@@ -88,3 +88,133 @@ DELIMITER ;
 CREATE EVENT IF NOT EXISTS `DailyTokenCleanup`
 ON SCHEDULE EVERY 1 DAY
 DO CALL `CleanupExpiredTokens`; 
+
+-- Create FileTransfer table
+CREATE TABLE IF NOT EXISTS `FileTransfers` (
+    `Id` INT NOT NULL AUTO_INCREMENT,
+    `SessionId` INT NOT NULL,
+    `SenderUserId` INT NOT NULL,
+    `ReceiverUserId` INT NOT NULL,
+    `FileName` VARCHAR(255) NOT NULL,
+    `FileSize` BIGINT NOT NULL,
+    `Status` VARCHAR(50) NOT NULL,
+    `ErrorMessage` TEXT,
+    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`Id`),
+    INDEX `IX_FileTransfers_Status` (`Status`),
+    FOREIGN KEY (`SessionId`) REFERENCES `RemoteSessions` (`Id`) ON DELETE CASCADE,
+    FOREIGN KEY (`SenderUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE,
+    FOREIGN KEY (`ReceiverUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; 
+
+-- Create ChatMessages table
+CREATE TABLE ChatMessages (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    SenderUserId INT NOT NULL,
+    Message TEXT NOT NULL,
+    MessageType VARCHAR(50) NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (SenderUserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+);
+
+-- Create SessionRecordings table
+CREATE TABLE SessionRecordings (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    StartedByUserId INT NOT NULL,
+    FilePath VARCHAR(500) NOT NULL,
+    Status VARCHAR(50) NOT NULL,
+    ErrorMessage VARCHAR(500),
+    StartedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    EndedAt DATETIME,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (StartedByUserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+);
+
+-- Create indexes
+CREATE INDEX IX_ChatMessages_SessionId ON ChatMessages(SessionId);
+CREATE INDEX IX_ChatMessages_SenderUserId ON ChatMessages(SenderUserId);
+CREATE INDEX IX_SessionRecordings_SessionId ON SessionRecordings(SessionId);
+CREATE INDEX IX_SessionRecordings_StartedByUserId ON SessionRecordings(StartedByUserId);
+CREATE INDEX IX_SessionRecordings_Status ON SessionRecordings(Status); 
+
+-- Create MonitorInfos table
+CREATE TABLE MonitorInfos (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    MonitorIndex INT NOT NULL,
+    DeviceName VARCHAR(100) NOT NULL,
+    Width INT NOT NULL,
+    Height INT NOT NULL,
+    RefreshRate INT NOT NULL,
+    IsPrimary BOOLEAN NOT NULL,
+    X INT NOT NULL,
+    Y INT NOT NULL,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE
+);
+
+-- Create SessionStatistics table
+CREATE TABLE SessionStatistics (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    Timestamp DATETIME NOT NULL,
+    BandwidthUsage FLOAT NOT NULL,
+    FrameRate INT NOT NULL,
+    Latency FLOAT NOT NULL,
+    PacketLoss FLOAT NOT NULL,
+    QualityLevel VARCHAR(50) NOT NULL,
+    CompressionLevel VARCHAR(50) NOT NULL,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE
+);
+
+-- Create SessionAuditLogs table
+CREATE TABLE SessionAuditLogs (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    UserId INT NOT NULL,
+    Action VARCHAR(100) NOT NULL,
+    Details TEXT NOT NULL,
+    IpAddress VARCHAR(50) NOT NULL,
+    Timestamp DATETIME NOT NULL,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (UserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+);
+
+-- Create indexes
+CREATE INDEX IX_MonitorInfos_SessionId ON MonitorInfos(SessionId);
+CREATE INDEX IX_SessionStatistics_SessionId ON SessionStatistics(SessionId);
+CREATE INDEX IX_SessionStatistics_Timestamp ON SessionStatistics(Timestamp);
+CREATE INDEX IX_SessionAuditLogs_SessionId ON SessionAuditLogs(SessionId);
+CREATE INDEX IX_SessionAuditLogs_UserId ON SessionAuditLogs(UserId);
+CREATE INDEX IX_SessionAuditLogs_Timestamp ON SessionAuditLogs(Timestamp); 
+
+-- Create TwoFactorAuths table
+CREATE TABLE TwoFactorAuths (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    UserId INT NOT NULL,
+    SecretKey VARCHAR(100) NOT NULL,
+    IsEnabled BOOLEAN NOT NULL,
+    BackupCodes TEXT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    LastUsed DATETIME,
+    FOREIGN KEY (UserId) REFERENCES Users(InternalId) ON DELETE CASCADE
+);
+
+-- Create IpWhitelists table
+CREATE TABLE IpWhitelists (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    UserId INT NOT NULL,
+    IpAddress VARCHAR(50) NOT NULL,
+    Description VARCHAR(200) NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    LastUsed DATETIME,
+    FOREIGN KEY (UserId) REFERENCES Users(InternalId) ON DELETE CASCADE
+);
+
+-- Create indexes
+CREATE INDEX IX_TwoFactorAuths_UserId ON TwoFactorAuths(UserId);
+CREATE INDEX IX_IpWhitelists_UserId ON IpWhitelists(UserId);
+CREATE INDEX IX_IpWhitelists_IpAddress ON IpWhitelists(IpAddress); 
