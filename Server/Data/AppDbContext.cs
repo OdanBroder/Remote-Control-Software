@@ -13,6 +13,7 @@ namespace Server.Data
         public DbSet<InputAction> InputActions { get; set; }
         public DbSet<ScreenData> ScreenData { get; set; }
         public DbSet<BlacklistedToken> BlacklistedTokens { get; set; }
+        public DbSet<FileTransfer> FileTransfers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,6 +23,9 @@ namespace Server.Data
             modelBuilder.Entity<BlacklistedToken>()
                 .HasIndex(b => b.Token)
                 .IsUnique();
+
+            modelBuilder.Entity<FileTransfer>()
+                .HasIndex(f => f.Status);
 
             base.OnModelCreating(modelBuilder);
         }

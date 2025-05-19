@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
+using Server.Data;
 using Server.Models;
 using Microsoft.Extensions.Logging;
 
@@ -9,10 +11,12 @@ namespace Server.Services
         private readonly ConcurrentDictionary<string, RemoteSession> _sessions = new();
         private readonly ConcurrentDictionary<string, string> _connectionToSession = new();
         private readonly ILogger<RemoteSessionService> _logger;
+        private readonly AppDbContext _context;
 
-        public RemoteSessionService(ILogger<RemoteSessionService> logger)
+        public RemoteSessionService(ILogger<RemoteSessionService> logger, AppDbContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
         public Task AddConnection(string sessionId, string connectionId)
@@ -133,6 +137,14 @@ namespace Server.Services
             return Task.FromResult(session.HostConnectionId == currentConnectionId ? 
                 session.ClientConnectionId : 
                 session.HostConnectionId);
+        }
+
+        public async Task<RemoteSession?> GetSession(string sessionId)
+        {
+            return await _context.RemoteSessions
+                .Include(s => s.HostUser)
+                .Include(s => s.ClientUser)
+                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
         }
     }
 }
