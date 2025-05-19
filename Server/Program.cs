@@ -8,6 +8,7 @@ using Server.Data;
 using Server.Services;
 using Server.Hubs;
 using dotenv.net;
+using Server.Middleware;
 
 // Load .env file
 DotNetEnv.Env.Load();
@@ -75,6 +76,9 @@ app.UseCors("AllowAll");
 
 app.UseRouting();
 app.UseAuthorization();
+
+// Add token blacklist middleware
+app.UseMiddleware<TokenBlacklistMiddleware>();
 
 app.MapControllers();
 app.MapHub<RemoteControlHub>("/remote-control-access");

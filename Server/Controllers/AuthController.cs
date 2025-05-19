@@ -76,6 +76,31 @@ namespace Server.Controllers
             return Ok(new { Token = token });
         }
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            if (string.IsNullOrEmpty(token))
+            {
+                return BadRequest("No token provided");
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            var expiresAt = jwtToken.ValidTo;
+
+            var blacklistedToken = new BlacklistedToken
+            {
+                Token = token,
+                ExpiresAt = expiresAt
+            };
+
+            _context.BlacklistedTokens.Add(blacklistedToken);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Successfully logged out" });
+        }
+
         private string GenerateJwtToken(User user)
         {
             var jwtKey = _config["JWT_SECRET"];
