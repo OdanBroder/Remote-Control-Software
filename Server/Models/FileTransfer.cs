@@ -13,10 +13,10 @@ namespace Server.Models
         public int SessionId { get; set; }
 
         [Required]
-        public int SenderUserId { get; set; }
+        public Guid SenderUserId { get; set; }
 
         [Required]
-        public int ReceiverUserId { get; set; }
+        public Guid ReceiverUserId { get; set; }
 
         [Required]
         [MaxLength(255)]

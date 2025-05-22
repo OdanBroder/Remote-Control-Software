@@ -9,8 +9,7 @@ namespace Server.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int InternalId { get; set; }
 
-        [MaxLength(36)]
-        public string? Id { get; set; }
+        public Guid Id { get; set; }
 
         [Required]
         [MaxLength(100)]

@@ -131,9 +131,9 @@ namespace Server.Hubs
 
                 var senderUserId = session.HostConnectionId == Context.ConnectionId 
                     ? session.HostUserId 
-                    : session.ClientUserId;
+                    : session.ClientUserId ?? Guid.Empty;
                 var receiverUserId = session.HostConnectionId == Context.ConnectionId 
-                    ? session.ClientUserId 
+                    ? session.ClientUserId ?? Guid.Empty
                     : session.HostUserId;
 
                 var transfer = await _fileTransferService.InitiateFileTransfer(
@@ -280,7 +280,7 @@ namespace Server.Hubs
 
                 var senderUserId = session.HostConnectionId == Context.ConnectionId 
                     ? session.HostUserId 
-                    : session.ClientUserId;
+                    : session.ClientUserId ?? Guid.Empty;
 
                 var chatMessage = new ChatMessage
                 {
@@ -331,7 +331,7 @@ namespace Server.Hubs
 
                 var startedByUserId = session.HostConnectionId == Context.ConnectionId 
                     ? session.HostUserId 
-                    : session.ClientUserId;
+                    : session.ClientUserId ?? Guid.Empty;
 
                 var recording = new SessionRecording
                 {
@@ -475,7 +475,7 @@ namespace Server.Hubs
 
                 await _qualityService.LogSessionActivity(
                     session.Id,
-                    session.HostConnectionId == Context.ConnectionId ? session.HostUserId : session.ClientUserId,
+                    session.HostConnectionId == Context.ConnectionId ? session.HostUserId : session.ClientUserId ?? Guid.Empty,
                     "SwitchMonitor",
                     $"Switched to monitor {monitorIndex}",
                     Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
@@ -515,7 +515,7 @@ namespace Server.Hubs
 
                 await _qualityService.LogSessionActivity(
                     session.Id,
-                    session.HostConnectionId == Context.ConnectionId ? session.HostUserId : session.ClientUserId,
+                    session.HostConnectionId == Context.ConnectionId ? session.HostUserId : session.ClientUserId ?? Guid.Empty,
                     "UpdateQualitySettings",
                     $"Updated quality settings to {qualityLevel} quality and {compressionLevel} compression",
                     Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString() ?? "Unknown"

@@ -41,7 +41,7 @@ namespace Server.Services
             }
         }
 
-        public async Task LogSessionActivity(int sessionId, int userId, string action, string details, string ipAddress)
+        public async Task LogSessionActivity(int sessionId, Guid userId, string action, string details, string ipAddress)
         {
             try
             {

@@ -13,7 +13,7 @@ namespace Server.Models
         public int SessionId { get; set; }
 
         [Required]
-        public int StartedByUserId { get; set; }
+        public Guid StartedByUserId { get; set; }
 
         [Required]
         public string FilePath { get; set; } = string.Empty;

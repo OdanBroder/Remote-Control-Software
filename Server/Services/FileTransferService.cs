@@ -28,8 +28,8 @@ namespace Server.Services
 
         public async Task<FileTransfer> InitiateFileTransfer(
             int sessionId,
-            int senderUserId,
-            int receiverUserId,
+            Guid senderUserId,
+            Guid receiverUserId,
             string fileName,
             long fileSize)
         {

@@ -14,10 +14,9 @@ namespace Server.Models
         public required string SessionIdentifier { get; set; }
 
         [Required]
-        public int HostUserId { get; set; }
+        public Guid HostUserId { get; set; }
 
-        [Required]
-        public int ClientUserId { get; set; }
+        public Guid? ClientUserId { get; set; }
 
         [MaxLength(255)]
         public string? HostConnectionId { get; set; }
@@ -35,6 +34,6 @@ namespace Server.Models
         public User HostUser { get; set; } = null!;
 
         [ForeignKey("ClientUserId")]
-        public User ClientUser { get; set; } = null!;
+        public User? ClientUser { get; set; }
     }
 }

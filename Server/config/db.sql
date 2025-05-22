@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS RemoteSessions (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     SessionIdentifier VARCHAR(100) NOT NULL UNIQUE,
     HostUserId CHAR(36) NOT NULL,
-    ClientUserId CHAR(36) NOT NULL,
+    ClientUserId CHAR(36) DEFAULT NULL,
     HostConnectionId VARCHAR(255),
     ClientConnectionId VARCHAR(255),
     Status ENUM('active', 'ended') DEFAULT 'active',
@@ -93,8 +93,8 @@ DO CALL `CleanupExpiredTokens`;
 CREATE TABLE IF NOT EXISTS `FileTransfers` (
     `Id` INT NOT NULL AUTO_INCREMENT,
     `SessionId` INT NOT NULL,
-    `SenderUserId` INT NOT NULL,
-    `ReceiverUserId` INT NOT NULL,
+    `SenderUserId` CHAR(36) NOT NULL,
+    `ReceiverUserId` CHAR(36) NOT NULL,
     `FileName` VARCHAR(255) NOT NULL,
     `FileSize` BIGINT NOT NULL,
     `Status` VARCHAR(50) NOT NULL,
@@ -104,34 +104,34 @@ CREATE TABLE IF NOT EXISTS `FileTransfers` (
     PRIMARY KEY (`Id`),
     INDEX `IX_FileTransfers_Status` (`Status`),
     FOREIGN KEY (`SessionId`) REFERENCES `RemoteSessions` (`Id`) ON DELETE CASCADE,
-    FOREIGN KEY (`SenderUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE,
-    FOREIGN KEY (`ReceiverUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE
+    FOREIGN KEY (`SenderUserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+    FOREIGN KEY (`ReceiverUserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; 
 
 -- Create ChatMessages table
 CREATE TABLE ChatMessages (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     SessionId INT NOT NULL,
-    SenderUserId INT NOT NULL,
+    SenderUserId CHAR(36) NOT NULL,
     Message TEXT NOT NULL,
     MessageType VARCHAR(50) NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    FOREIGN KEY (SenderUserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+    FOREIGN KEY (SenderUserId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 
 -- Create SessionRecordings table
 CREATE TABLE SessionRecordings (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     SessionId INT NOT NULL,
-    StartedByUserId INT NOT NULL,
+    StartedByUserId CHAR(36) NOT NULL,
     FilePath VARCHAR(500) NOT NULL,
     Status VARCHAR(50) NOT NULL,
     ErrorMessage VARCHAR(500),
     StartedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     EndedAt DATETIME,
     FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    FOREIGN KEY (StartedByUserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+    FOREIGN KEY (StartedByUserId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 
 -- Create indexes
@@ -174,13 +174,13 @@ CREATE TABLE SessionStatistics (
 CREATE TABLE SessionAuditLogs (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     SessionId INT NOT NULL,
-    UserId INT NOT NULL,
+    UserId CHAR(36) NOT NULL,
     Action VARCHAR(100) NOT NULL,
     Details TEXT NOT NULL,
     IpAddress VARCHAR(50) NOT NULL,
     Timestamp DATETIME NOT NULL,
     FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    FOREIGN KEY (UserId) REFERENCES Users(InternalId) ON DELETE NO ACTION
+    FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE NO ACTION
 );
 
 -- Create indexes

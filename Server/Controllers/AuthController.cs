@@ -35,7 +35,7 @@ namespace Server.Controllers
             {
                 return BadRequest("Password are required.");
             }
-            user.InternalId = Guid.NewGuid().GetHashCode();
+            user.Id = Guid.NewGuid();
             user.CreatedAt = DateTime.Now;
             user.UpdatedAt = DateTime.Now;
 
@@ -113,13 +113,13 @@ namespace Server.Controllers
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, user.InternalId.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username)
             };
 
             var token = new JwtSecurityToken(
-                issuer: "yourapp",
-                audience: "yourapp",
+                issuer: "remote-control-server",
+                audience: "remote-control-client",
                 claims: claims,
                 expires: DateTime.Now.AddDays(7),
                 signingCredentials: creds

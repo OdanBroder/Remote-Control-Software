@@ -31,15 +31,15 @@ namespace Server.Controllers
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
                 return NotFound(new { Message = "User not found" });
             }
 
             var session = await _context.RemoteSessions
-                .FirstOrDefaultAsync(s => s.SessionIdentifier == action.SessionIdentifier && 
-                    (s.HostUserId == user.InternalId || s.ClientUserId == user.InternalId));
+                .FirstOrDefaultAsync(s => s.SessionIdentifier == action.SessionIdentifier &&
+                    (s.HostUserId == user.Id || s.ClientUserId == user.Id));
 
             if (session == null)
             {
@@ -74,15 +74,15 @@ namespace Server.Controllers
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
                 return NotFound(new { Message = "User not found" });
             }
 
             var session = await _context.RemoteSessions
-                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionIdentifier && 
-                    (s.HostUserId == user.InternalId || s.ClientUserId == user.InternalId));
+                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionIdentifier &&
+                    (s.HostUserId == user.Id || s.ClientUserId == user.Id));
 
             if (session == null)
             {
@@ -116,15 +116,15 @@ namespace Server.Controllers
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
                 return NotFound(new { Message = "User not found" });
             }
 
             var session = await _context.RemoteSessions
-                .FirstOrDefaultAsync(s => s.SessionIdentifier == screenData.SessionIdentifier && 
-                    s.HostUserId == user.InternalId);
+                .FirstOrDefaultAsync(s => s.SessionIdentifier == screenData.SessionIdentifier &&
+                    s.HostUserId == user.Id);
 
             if (session == null)
             {

@@ -26,8 +26,8 @@ namespace Server.Services
                 session = new RemoteSession 
                 { 
                     SessionIdentifier = sessionId,
-                    HostUserId = 0,  // Will be set when host connects
-                    ClientUserId = 0, // Will be set when client connects
+                    HostUserId = Guid.Empty,  // Will be set when host connects
+                    ClientUserId = Guid.Empty, // Will be set when client connects
                     Status = "active",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

@@ -44,6 +44,7 @@ namespace Server.Data
                 .HasOne(c => c.Sender)
                 .WithMany()
                 .HasForeignKey(c => c.SenderUserId)
+                .HasPrincipalKey(u => u.Id)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<SessionRecording>()
@@ -56,6 +57,7 @@ namespace Server.Data
                 .HasOne(r => r.StartedBy)
                 .WithMany()
                 .HasForeignKey(r => r.StartedByUserId)
+                .HasPrincipalKey(u => u.Id)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<MonitorInfo>()
@@ -80,6 +82,7 @@ namespace Server.Data
                 .HasOne(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
+                .HasPrincipalKey(u => u.Id)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<TwoFactorAuth>()
@@ -93,6 +96,34 @@ namespace Server.Data
                 .WithMany()
                 .HasForeignKey(w => w.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RemoteSession>()
+                .HasOne(s => s.HostUser)
+                .WithMany()
+                .HasForeignKey(s => s.HostUserId)
+                .HasPrincipalKey(u => u.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RemoteSession>()
+                .HasOne(s => s.ClientUser)
+                .WithMany()
+                .HasForeignKey(s => s.ClientUserId)
+                .HasPrincipalKey(u => u.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FileTransfer>()
+                .HasOne(f => f.Sender)
+                .WithMany()
+                .HasForeignKey(f => f.SenderUserId)
+                .HasPrincipalKey(u => u.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FileTransfer>()
+                .HasOne(f => f.Receiver)
+                .WithMany()
+                .HasForeignKey(f => f.ReceiverUserId)
+                .HasPrincipalKey(u => u.Id)
+                .OnDelete(DeleteBehavior.Restrict);
 
             base.OnModelCreating(modelBuilder);
         }
