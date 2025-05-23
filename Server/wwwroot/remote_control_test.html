@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Remote Control Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <style>
+        .container {
+            margin: 20px;
+        }
+
+        .section {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .response {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f5f5;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+
+        #screen {
+            max-width: 800px;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+        }
+
+        .input-actions {
+            margin: 10px 0;
+        }
+
+        .input-actions button {
+            margin: 5px;
+        }
+
+        .status-connected {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-disconnected {
+            color: red;
+            font-weight: bold;
+        }
+
+        .session-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+        }
+
+        .data-received {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Remote Control Test</h2>
+
+        <!-- Authentication -->
+        <div class="section">
+            <h3>Authentication</h3>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <button onclick="register()">Register</button>
+            <div id="authResponse" class="response"></div>
+        </div>
+
+        <!-- Session Management -->
+        <div class="section">
+            <h3>Session Management</h3>
+            <input type="text" id="sessionId" placeholder="Session ID">
+            <button onclick="startSession()">Start Session</button>
+            <button onclick="joinSession()">Join Session</button>
+            <button onclick="leaveSession()">Leave Session</button>
+            <button onclick="connectToSession()">Connect</button>
+            <button onclick="disconnectFromSession()">Disconnect</button>
+            <button onclick="getActiveSessions()">Get Active Sessions</button>
+            <div id="sessionResponse" class="response"></div>
+
+            <!-- Active Sessions -->
+            <div class="section">
+                <h4>Active Sessions</h4>
+                <div id="activeSessionsResponse" class="response"></div>
+            </div>
+
+            <!-- Active Session Info -->
+            <div id="sessionInfo" class="session-info" style="display: none;">
+                <h4>Current Session Information</h4>
+                <div>Session ID: <span id="activeSessionId"></span></div>
+                <div>Role: <span id="sessionRole"></span></div>
+                <div>Status: <span id="sessionStatus"></span></div>
+                <div>Connected Since: <span id="connectedSince"></span></div>
+                <div>Connection ID: <span id="connectionId"></span></div>
+            </div>
+        </div>
+
+        <!-- Remote Control Actions -->
+        <div class="section">
+            <h3>Remote Control Actions</h3>
+            <div class="input-actions">
+                <button onclick="sendInput('keypress', 'A')">Send Key A</button>
+                <button onclick="sendInput('keypress', 'B')">Send Key B</button>
+                <button onclick="sendInput('mouseclick', 'left')">Mouse Left Click</button>
+                <button onclick="sendInput('mousemove', '100,100')">Mouse Move</button>
+            </div>
+            <div id="inputResponse" class="response"></div>
+        </div>
+
+        <!-- Screen Data -->
+        <div class="section">
+            <h3>Screen Data</h3>
+            <button onclick="getScreen()">Get Screen</button>
+            <button onclick="updateScreen()">Update Screen (Test)</button>
+            <div id="screen"></div>
+            <div id="screenResponse" class="response"></div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="section">
+            <h3>Connection Status</h3>
+            <div id="connectionStatus" class="status-disconnected">Disconnected</div>
+            <div>Last Activity: <span id="lastActivity">Never</span></div>
+            <div>Data Received: <span id="dataReceivedCount">0</span></div>
+            <div>Connection State: <span id="connectionState">Disconnected</span></div>
+            <div id="logs" class="response"></div>
+        </div>
+
+        <!-- Test Connection -->
+        <div class="section">
+            <h3>Test Connection</h3>
+            <button onclick="testHubConnection()">Test Hub Connection</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://localhost:5031';
+        const HUB_URL = `${API_BASE_URL}/remotecontrolhub`;
+        let token = null;
+        let connection = null;
+        let dataReceivedCount = 0;
+        let connectedSince = null;
+
+        // Utility Functions
+        function displayResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            element.className = `response ${isError ? 'error' : 'success'}`;
+        }
+
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logs.insertBefore(logEntry, logs.firstChild);
+
+            // Update last activity
+            document.getElementById('lastActivity').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateConnectionStatus(isConnected) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = isConnected ? 'Connected' : 'Disconnected';
+            statusElement.className = isConnected ? 'status-connected' : 'status-disconnected';
+        }
+
+        function updateSessionInfo(sessionData) {
+            const sessionInfo = document.getElementById('sessionInfo');
+            if (sessionData) {
+                document.getElementById('activeSessionId').textContent = sessionData.sessionId;
+                document.getElementById('sessionRole').textContent = sessionData.role;
+                document.getElementById('sessionStatus').textContent = sessionData.status;
+                document.getElementById('connectedSince').textContent = connectedSince ? connectedSince.toLocaleTimeString() : 'N/A';
+                sessionInfo.style.display = 'block';
+            } else {
+                sessionInfo.style.display = 'none';
+            }
+        }
+
+        // Authentication Functions
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.data.token;
+                    displayResponse('authResponse', data);
+                    log('Login successful');
+                    // Get active sessions after successful login
+                    getActiveSessions();
+                } else {
+                    displayResponse('authResponse', data, true);
+                    log(`Login failed: ${data.message}`);
+                }
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: "LOGIN_ERROR"
+                };
+                displayResponse('authResponse', errorResponse, true);
+                log(`Login error: ${err.message}`);
+            }
+        }
+
+        async function register() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.data.Token;
+                    displayResponse('authResponse', data);
+                    log('Registration successful');
+                } else {
+                    displayResponse('authResponse', data, true);
+                    log(`Registration failed: ${data.message}`);
+                }
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: "REGISTRATION_ERROR"
+                };
+                displayResponse('authResponse', errorResponse, true);
+                log(`Registration error: ${err.message}`);
+            }
+        }
+
+        // Session Management Functions
+        async function startSession() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/session/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('sessionId').value = data.data.sessionId;
+                    connectToHub(data.data.sessionId);
+                    log('Session started successfully');
+                }
+                displayResponse('sessionResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SESSION_START_ERROR'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                log(`Session start error: ${err.message}`);
+            }
+        }
+
+        async function joinSession() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/session/join/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    connectToHub(sessionId);
+                    log('Successfully joined session');
+                }
+                displayResponse('sessionResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SESSION_JOIN_ERROR'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                log(`Session join error: ${err.message}`);
+            }
+        }
+
+        // SignalR Connection
+        async function connectToHub(sessionId) {
+            try {
+                // Check if SignalR is loaded
+                if (typeof signalR === 'undefined') {
+                    log('SignalR library not loaded. Please check the script inclusion.');
+                    return;
+                }
+
+                // Create new connection
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`${HUB_URL}?sessionId=${sessionId}`, {
+                        skipNegotiation: false,
+                        transport: signalR.HttpTransportType.WebSockets,
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        accessTokenFactory: () => token
+                    })
+                    .withAutomaticReconnect({
+                        nextRetryDelayInMilliseconds: retryContext => {
+                            // First retry immediately
+                            if (retryContext.previousRetryCount === 0) {
+                                return 0;
+                            }
+                            // Then retry after 2, 5, 10, and 20 seconds
+                            return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 20000);
+                        }
+                    })
+                    .configureLogging(signalR.LogLevel.Debug)
+                    .withHubProtocol(new signalR.JsonHubProtocol())
+                    .build();
+
+                // Add connection event handlers
+                connection.onreconnecting(error => {
+                    log(`[DEBUG] Connection lost. Reconnecting...
+                        Error: ${error}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(false);
+                    document.getElementById('connectionState').textContent = 'Reconnecting...';
+                });
+
+                connection.onreconnected(connectionId => {
+                    log(`[DEBUG] Reconnected successfully:
+                        Connection ID: ${connectionId}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(true);
+                    document.getElementById('connectionState').textContent = 'Connected';
+                    document.getElementById('connectionId').textContent = connectionId;
+                });
+
+                connection.onclose(error => {
+                    log(`[DEBUG] Connection closed:
+                        Error: ${error}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(false);
+                    updateSessionInfo(null);
+                    document.getElementById('connectionState').textContent = 'Disconnected';
+                    document.getElementById('connectionId').textContent = 'N/A';
+                });
+
+                // Add message handlers
+                connection.on("Error", (message) => {
+                    log(`[ERROR] Received error from server: ${message}`);
+                    displayResponse('sessionResponse', {
+                        success: false,
+                        message: message,
+                        code: 'SERVER_ERROR'
+                    }, true);
+                });
+
+                let connectionEstablished = false;
+                connection.on("ConnectionEstablished", (connectionId) => {
+                    log(`[DEBUG] Connection established with ID: ${connectionId}`);
+                    connectionEstablished = true;
+                    updateConnectionStatus(true);
+                    document.getElementById('connectionState').textContent = 'Connected';
+                    document.getElementById('connectionId').textContent = connectionId;
+                });
+                connection.on("PeerConnected", (connectionId) => {
+                    log(`[DEBUG] Peer connected: ${connectionId}`);
+                });
+
+                connection.on("PeerDisconnected", (connectionId) => {
+                    log(`[DEBUG] Peer disconnected: ${connectionId}`);
+                });
+
+                connection.on("ReceiveInput", (serializedAction) => {
+                    log(`[DEBUG] Received input action: ${serializedAction}`);
+                    try {
+                        const action = JSON.parse(serializedAction);
+                        log(`[DEBUG] Parsed action details:
+                            Type: ${action.type}
+                            Action: ${action.action}
+                            Key: ${action.key || 'N/A'}
+                            Modifiers: ${JSON.stringify(action.modifiers || [])}
+                            X: ${action.x || 'N/A'}
+                            Y: ${action.y || 'N/A'}
+                            Button: ${action.button || 'N/A'}
+                            Full Action: ${JSON.stringify(action, null, 2)}`);
+
+                        // Add a small delay to ensure proper handling
+                        setTimeout(() => {
+                            if (action.type === "keyboard") {
+                                log(`[DEBUG] Processing keyboard action: ${action.action} ${action.key}`);
+                                simulateKeyPress(action.key, action.modifiers || []);
+                            }
+                            else if (action.type === "mouse") {
+                                log(`[DEBUG] Processing mouse action: ${action.action} at (${action.x}, ${action.y})`);
+                                if (action.action === "move") {
+                                    simulateMouseMove(action.x, action.y);
+                                } else if (action.action === "click") {
+                                    simulateMouseClick(action.x, action.y, action.button);
+                                }
+                            }
+                        }, 100); // Small delay to ensure proper sequencing
+                    } catch (error) {
+                        log(`[ERROR] Error processing input: ${error.message}`);
+                        log(`[ERROR] Raw serialized action: ${serializedAction}`);
+                    }
+                });
+
+                connection.on("ScreenDataUpdated", (imageData) => {
+                    dataReceivedCount++;
+                    document.getElementById('dataReceivedCount').textContent = dataReceivedCount;
+
+                    log(`[DEBUG] Received screen update:
+                        Data length: ${imageData.length}
+                        First 100 chars: ${imageData.substring(0, 100)}...`);
+                    
+                    const img = document.createElement('img');
+                    img.src = `data:image/jpeg;base64,${imageData}`;
+                    document.getElementById('screen').innerHTML = '';
+                    document.getElementById('screen').appendChild(img);
+                });
+
+                connection.on("TestMessage", (message) => {
+                    log(`[DEBUG] Received test message:
+                        Message: ${message}
+                        Type: ${typeof message}
+                        Timestamp: ${new Date().toISOString()}`);
+                });
+
+                connection.on("Echo", (message) => {
+                    log(`[DEBUG] Received echo:
+                        Message: ${message}
+                        Type: ${typeof message}
+                        Timestamp: ${new Date().toISOString()}`);
+                });
+
+                log(`Connecting to hub at: ${HUB_URL}`);
+                log(`Using session ID: ${sessionId}`);
+                log(`Using token: ${token ? 'Token present' : 'No token'}`);
+
+                // Start the connection
+                log('Starting connection...');
+                await connection.start();
+                log('Connection started successfully');
+                updateConnectionStatus(true);
+                document.getElementById('connectionState').textContent = 'Connected';
+                document.getElementById('connectionId').textContent = connection.connectionId || 'N/A';
+
+                // Wait for connection to be fully established
+                let retryCount = 0;
+                const maxRetries = 5;
+                const checkInterval = 1000; // 1 second
+
+                while (retryCount < maxRetries) {
+                    if (connectionEstablished && connection.state === signalR.HubConnectionState.Connected) {
+                        log('Connection is fully established and synchronized');
+                        break;
+                    }
+
+                    log(`Waiting for connection to be fully established... Attempt ${retryCount + 1}/${maxRetries}`);
+                    log(`Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                    await new Promise(resolve => setTimeout(resolve, checkInterval));
+                    retryCount++;
+                }
+
+                if (!connectionEstablished || connection.state !== signalR.HubConnectionState.Connected) {
+                    throw new Error(`Failed to establish connection after ${maxRetries} attempts. Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                }
+
+                // Send a test message to verify connection
+                const testAction = {
+                    type: "test",
+                    action: "test",
+                    message: "Testing connection..."
+                };
+
+                log('Sending test message...');
+                await connection.invoke("SendInputAction", sessionId, JSON.stringify(testAction));
+                log('Test message sent successfully');
+                displayResponse('sessionResponse', {
+                    success: true,
+                    message: 'Test message sent successfully',
+                    code: 'TEST_SUCCESS'
+                });
+            } catch (err) {
+                log(`Hub connection error: ${err}`);
+                updateConnectionStatus(false);
+                document.getElementById('connectionState').textContent = 'Connection Failed';
+                displayResponse('sessionResponse', {
+                    success: false,
+                    message: `Connection failed: ${err.message}`,
+                    code: 'CONNECTION_FAILED'
+                }, true);
+            }
+        }
+
+        // Remote Control Functions
+        async function sendInput(type, value) {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('inputResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('inputResponse', errorResponse, true);
+                return;
+            }
+
+            let inputData;
+            if (type.startsWith('key')) {
+                inputData = {
+                    type: "keyboard",
+                    action: "keydown",
+                    key: value,
+                    modifiers: []
+                };
+            } else if (type.startsWith('mouse')) {
+                if (type === 'mouseclick') {
+                    inputData = {
+                        type: "mouse",
+                        action: "click",
+                        x: 100,
+                        y: 100,
+                        button: value
+                    };
+                } else if (type === 'mousemove') {
+                    const [x, y] = value.split(',').map(Number);
+                    inputData = {
+                        type: "mouse",
+                        action: "move",
+                        x: x,
+                        y: y
+                    };
+                }
+            }
+
+            try {
+                log(`Sending input: ${JSON.stringify(inputData)}`);
+                
+                // First try to send through SignalR
+                if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                    log('Sending input through SignalR...');
+                    await connection.invoke("SendInputAction", sessionId, JSON.stringify(inputData));
+                    log('Input sent through SignalR successfully');
+                    displayResponse('inputResponse', {
+                        success: true,
+                        message: 'Input sent successfully through SignalR',
+                        code: 'INPUT_SENT'
+                    });
+                    return;
+                }
+
+                // Fallback to REST API if SignalR is not available
+                log('SignalR not available, falling back to REST API...');
+                const response = await fetch(`${API_BASE_URL}/api/remote/send-input`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionIdentifier: sessionId,
+                        action: inputData
+                    })
+                });
+
+                const data = await response.json();
+                log(`Server response: ${JSON.stringify(data)}`);
+
+                if (response.ok) {
+                    log(`Input sent successfully: ${type} ${value}`);
+                } else {
+                    log(`Input send failed: ${data.message}`);
+                }
+                displayResponse('inputResponse', data, !response.ok);
+            } catch (err) {
+                log(`Input send error: ${err.message}`);
+                displayResponse('inputResponse', {
+                    success: false,
+                    message: 'Failed to send input',
+                    code: 'INPUT_SEND_ERROR'
+                }, true);
+            }
+        }
+
+        async function getScreen() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('screenResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('screenResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/remote/screen?sessionIdentifier=${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    const img = document.createElement('img');
+                    img.src = `data:image/jpeg;base64,${data.data}`;
+                    document.getElementById('screen').innerHTML = '';
+                    document.getElementById('screen').appendChild(img);
+                    log('Screen data received successfully');
+                }
+                displayResponse('screenResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SCREEN_GET_ERROR'
+                };
+                displayResponse('screenResponse', errorResponse, true);
+                log(`Screen get error: ${err.message}`);
+            }
+        }
+
+        async function updateScreen() {
+            if (!token) {
+                displayResponse('screenResponse', { error: 'Please login first' }, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                displayResponse('screenResponse', { error: 'Please enter a session ID' }, true);
+                return;
+            }
+
+            // Create a test image (1x1 pixel)
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, 1, 1);
+            const testImage = canvas.toDataURL('image/jpeg').split(',')[1];
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/remote/screen`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionIdentifier: sessionId,
+                        data: testImage
+                    })
+                });
+                const data = await response.json();
+                displayResponse('screenResponse', data, !response.ok);
+            } catch (err) {
+                displayResponse('screenResponse', { error: err.message }, true);
+            }
+        }
+
+        // Add leave session function
+        async function leaveSession() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                // First stop the SignalR connection
+                if (connection && connection.state !== signalR.HubConnectionState.Disconnected) {
+                    try {
+                        await connection.stop();
+                    } catch (stopError) {
+                        log(`Error stopping connection: ${stopError.message}`);
+                    }
+                }
+                connection = null;
+
+                const response = await fetch(`${API_BASE_URL}/api/session/stop/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    updateConnectionStatus(false);
+                    updateSessionInfo(null);
+                    document.getElementById('sessionId').value = '';
+                    log('Successfully left session');
+                }
+                displayResponse('sessionResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SESSION_LEAVE_ERROR'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                log(`Session leave error: ${err.message}`);
+            }
+        }
+
+        // Replace refreshActiveSessions with getActiveSessions
+        async function getActiveSessions() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED',
+                    data: []
+                };
+                displayResponse('activeSessionsResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/session/active`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    // Format the response with more details
+                    const formattedResponse = {
+                        success: true,
+                        message: data.message,
+                        code: data.code,
+                        data: data.data.map(session => ({
+                            sessionId: session.sessionId,
+                            host: session.hostUsername,
+                            client: session.clientUsername,
+                            created: new Date(session.createdAt).toLocaleString(),
+                            lastActivity: new Date(session.lastActivity).toLocaleString(),
+                            status: session.status
+                        }))
+                    };
+
+                    // Update connection status
+                    updateConnectionStatus(true);
+                    if (data.data.length > 0) {
+                        document.getElementById('sessionId').value = data.data[0].sessionId;
+                    }
+                    document.getElementById('connectionState').textContent = 'Active Sessions Available';
+                    log(`Found ${data.data.length} active sessions`);
+
+                    // Display formatted response
+                    displayResponse('activeSessionsResponse', formattedResponse);
+                } else {
+                    const formattedResponse = {
+                        success: false,
+                        message: data.message || 'No active sessions found',
+                        code: data.code || 'NO_SESSIONS',
+                        data: []
+                    };
+
+                    updateConnectionStatus(false);
+                    document.getElementById('connectionState').textContent = 'No Active Sessions';
+                    displayResponse('activeSessionsResponse', formattedResponse);
+                }
+            } catch (err) {
+                const formattedResponse = {
+                    success: false,
+                    message: `Error fetching sessions: ${err.message}`,
+                    code: 'FETCH_ERROR',
+                    data: []
+                };
+
+                updateConnectionStatus(false);
+                document.getElementById('connectionState').textContent = 'Error Fetching Sessions';
+                displayResponse('activeSessionsResponse', formattedResponse, true);
+            }
+        }
+
+        // Add connect and disconnect functions
+        async function connectToSession() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                // First ensure we have a SignalR connection
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                    log('Establishing SignalR connection first...');
+                    await connectToHub(sessionId);
+                }
+
+                // Wait a moment to ensure connection is fully established
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                if (!connection || !connection.connectionId) {
+                    throw new Error('No SignalR connection ID available');
+                }
+
+                log(`[DEBUG] Connecting to session with SignalR connection ID: ${connection.connectionId}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/session/connect/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-SignalR-Connection-Id': connection.connectionId
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('connectionId').textContent = data.ConnectionId;
+                    updateConnectionStatus(true);
+                    document.getElementById('connectionState').textContent = 'Connected';
+                    log(`[DEBUG] Successfully connected to session with connection ID: ${data.ConnectionId}`);
+                } else {
+                    log(`[ERROR] Failed to connect to session: ${data.Message}`);
+                }
+                displayResponse('sessionResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SESSION_CONNECT_ERROR'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                log(`[ERROR] Session connect error: ${err.message}`);
+            }
+        }
+
+        async function disconnectFromSession() {
+            if (!token) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                const errorResponse = {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/session/disconnect/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('connectionId').textContent = 'N/A';
+                    updateConnectionStatus(false);
+                    document.getElementById('connectionState').textContent = 'Disconnected';
+                    log('Successfully disconnected from session');
+                }
+                displayResponse('sessionResponse', data, !response.ok);
+            } catch (err) {
+                const errorResponse = {
+                    success: false,
+                    message: err.message,
+                    code: 'SESSION_DISCONNECT_ERROR'
+                };
+                displayResponse('sessionResponse', errorResponse, true);
+                log(`Session disconnect error: ${err.message}`);
+            }
+        }
+
+        // Update window.onload
+        window.onload = function () {
+            if (token) {
+                getActiveSessions();
+            }
+        };
+
+        function simulateKeyPress(key, modifiers = []) {
+            // Create and dispatch keydown event
+            const keyDownEvent = new KeyboardEvent('keydown', {
+                key: key,
+                code: `Key${key.toUpperCase()}`,
+                ctrlKey: modifiers.includes('Control'),
+                altKey: modifiers.includes('Alt'),
+                shiftKey: modifiers.includes('Shift'),
+                metaKey: modifiers.includes('Meta')
+            });
+            document.dispatchEvent(keyDownEvent);
+
+            // Create and dispatch keyup event
+            const keyUpEvent = new KeyboardEvent('keyup', {
+                key: key,
+                code: `Key${key.toUpperCase()}`,
+                ctrlKey: modifiers.includes('Control'),
+                altKey: modifiers.includes('Alt'),
+                shiftKey: modifiers.includes('Shift'),
+                metaKey: modifiers.includes('Meta')
+            });
+            document.dispatchEvent(keyUpEvent);
+        }
+
+        function simulateMouseMove(x, y) {
+            const moveEvent = new MouseEvent('mousemove', {
+                clientX: x,
+                clientY: y,
+                bubbles: true
+            });
+            document.dispatchEvent(moveEvent);
+        }
+
+        function simulateMouseClick(x, y, button = 'left') {
+            // Mouse down
+            const downEvent = new MouseEvent('mousedown', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(downEvent);
+
+            // Mouse up
+            const upEvent = new MouseEvent('mouseup', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(upEvent);
+
+            // Click
+            const clickEvent = new MouseEvent('click', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(clickEvent);
+        }
+
+        async function testHubConnection() {
+            // Check if SignalR is loaded
+            if (typeof signalR === 'undefined') {
+                log('SignalR library not loaded. Please check the script inclusion.');
+                displayResponse('sessionResponse', {
+                    success: false,
+                    message: 'SignalR library not loaded',
+                    code: 'SIGNALR_NOT_LOADED'
+                }, true);
+                return;
+            }
+
+            if (!token) {
+                log('No authentication token available. Please login first.');
+                displayResponse('sessionResponse', {
+                    success: false,
+                    message: 'No authentication token available. Please login first.',
+                    code: 'NO_TOKEN'
+                }, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                log('No session ID available. Please start or join a session first.');
+                displayResponse('sessionResponse', {
+                    success: false,
+                    message: 'No session ID available. Please start or join a session.',
+                    code: 'NO_SESSION_ID'
+                }, true);
+                return;
+            }
+
+            try {
+                // Always create a new connection for testing
+                log('Creating new connection...');
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`${HUB_URL}?sessionId=${sessionId}`, {
+                        skipNegotiation: false,
+                        transport: signalR.HttpTransportType.WebSockets,
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        accessTokenFactory: () => token
+                    })
+                    .withAutomaticReconnect({
+                        nextRetryDelayInMilliseconds: retryContext => {
+                            // First retry immediately
+                            if (retryContext.previousRetryCount === 0) {
+                                return 0;
+                            }
+                            // Then retry after 2, 5, 10, and 20 seconds
+                            return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 20000);
+                        }
+                    })
+                    .configureLogging(signalR.LogLevel.Debug)
+                    .withHubProtocol(new signalR.JsonHubProtocol())
+                    .build();
+
+                // Add connection event handlers
+                connection.onreconnecting(error => {
+                    log(`[DEBUG] Connection lost. Reconnecting...
+                        Error: ${error}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(false);
+                    document.getElementById('connectionState').textContent = 'Reconnecting...';
+                });
+
+                connection.onreconnected(connectionId => {
+                    log(`[DEBUG] Reconnected successfully:
+                        Connection ID: ${connectionId}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(true);
+                    document.getElementById('connectionState').textContent = 'Connected';
+                    document.getElementById('connectionId').textContent = connectionId;
+                });
+
+                connection.onclose(error => {
+                    log(`[DEBUG] Connection closed:
+                        Error: ${error}
+                        State: ${connection.state}
+                        Timestamp: ${new Date().toISOString()}`);
+                    updateConnectionStatus(false);
+                    updateSessionInfo(null);
+                    document.getElementById('connectionState').textContent = 'Disconnected';
+                    document.getElementById('connectionId').textContent = 'N/A';
+                });
+
+                // Add message handlers
+                connection.on("Error", (message) => {
+                    log(`[ERROR] Received error from server: ${message}`);
+                    displayResponse('sessionResponse', {
+                        success: false,
+                        message: message,
+                        code: 'SERVER_ERROR'
+                    }, true);
+                });
+
+                let connectionEstablished = false;
+                connection.on("ConnectionEstablished", (connectionId) => {
+                    log(`[DEBUG] Connection established with ID: ${connectionId}`);
+                    connectionEstablished = true;
+                    updateConnectionStatus(true);
+                    document.getElementById('connectionState').textContent = 'Connected';
+                    document.getElementById('connectionId').textContent = connectionId;
+                });
+
+                connection.on("PeerConnected", (connectionId) => {
+                    log(`[DEBUG] Peer connected: ${connectionId}`);
+                });
+
+                connection.on("PeerDisconnected", (connectionId) => {
+                    log(`[DEBUG] Peer disconnected: ${connectionId}`);
+                });
+
+                connection.on("ReceiveInput", (serializedAction) => {
+                    log(`[DEBUG] Received input action: ${serializedAction}`);
+                });
+
+                connection.on("TestMessage", (message) => {
+                    log(`[DEBUG] Received test message:
+                        Message: ${message}
+                        Type: ${typeof message}
+                        Timestamp: ${new Date().toISOString()}`);
+                });
+
+                // Start the connection
+                log('Starting connection...');
+                await connection.start();
+                log('Connection started successfully');
+                updateConnectionStatus(true);
+                document.getElementById('connectionState').textContent = 'Connected';
+                document.getElementById('connectionId').textContent = connection.connectionId || 'N/A';
+
+                // Wait for connection to be fully established
+                let retryCount = 0;
+                const maxRetries = 5;
+                const checkInterval = 1000; // 1 second
+
+                while (retryCount < maxRetries) {
+                    if (connectionEstablished && connection.state === signalR.HubConnectionState.Connected) {
+                        log('Connection is fully established and synchronized');
+                        break;
+                    }
+
+                    log(`Waiting for connection to be fully established... Attempt ${retryCount + 1}/${maxRetries}`);
+                    log(`Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                    await new Promise(resolve => setTimeout(resolve, checkInterval));
+                    retryCount++;
+                }
+
+                if (!connectionEstablished || connection.state !== signalR.HubConnectionState.Connected) {
+                    throw new Error(`Failed to establish connection after ${maxRetries} attempts. Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                }
+
+                // Send a test message to verify connection
+                const testAction = {
+                    type: "test",
+                    action: "test",
+                    message: "Testing connection..."
+                };
+
+                log('Sending test message...');
+                await connection.invoke("SendInputAction", sessionId, JSON.stringify(testAction));
+                log('Test message sent successfully');
+                displayResponse('sessionResponse', {
+                    success: true,
+                    message: 'Test message sent successfully',
+                    code: 'TEST_SUCCESS'
+                });
+            } catch (error) {
+                log(`Error testing connection: ${error.message}`);
+                displayResponse('sessionResponse', {
+                    success: false,
+                    message: `Error testing connection: ${error.message}`,
+                    code: 'TEST_CONNECTION_ERROR'
+                }, true);
+            }
+        }
+    </script>
+</body>
+
+</html>

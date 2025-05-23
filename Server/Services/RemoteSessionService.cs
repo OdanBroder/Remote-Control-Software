@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Models;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 namespace Server.Services
 {
@@ -19,132 +21,90 @@ namespace Server.Services
             _context = context;
         }
 
-        public Task AddConnection(string sessionId, string connectionId)
-        {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                session = new RemoteSession 
-                { 
-                    SessionIdentifier = sessionId,
-                    HostUserId = Guid.Empty,  // Will be set when host connects
-                    ClientUserId = Guid.Empty, // Will be set when client connects
-                    Status = "active",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _sessions.TryAdd(sessionId, session);
-            }
-
-            if (session.HostConnectionId == null)
-            {
-                session.HostConnectionId = connectionId;
-                session.UpdatedAt = DateTime.UtcNow;
-                _logger.LogInformation($"Host connected to session {sessionId}");
-            }
-            else if (session.ClientConnectionId == null)
-            {
-                session.ClientConnectionId = connectionId;
-                session.UpdatedAt = DateTime.UtcNow;
-                _logger.LogInformation($"Client connected to session {sessionId}");
-            }
-            else
-            {
-                _logger.LogWarning($"Attempt to connect to full session {sessionId}");
-                throw new InvalidOperationException("Session is full");
-            }
-
-            _connectionToSession.TryAdd(connectionId, sessionId);
-            return Task.CompletedTask;
-        }
-
-        public Task RemoveConnection(string sessionId, string connectionId)
-        {
-            if (_sessions.TryGetValue(sessionId, out var session))
-            {
-                if (session.HostConnectionId == connectionId)
-                {
-                    session.HostConnectionId = null;
-                    session.UpdatedAt = DateTime.UtcNow;
-                    _logger.LogInformation($"Host disconnected from session {sessionId}");
-                }
-                else if (session.ClientConnectionId == connectionId)
-                {
-                    session.ClientConnectionId = null;
-                    session.UpdatedAt = DateTime.UtcNow;
-                    _logger.LogInformation($"Client disconnected from session {sessionId}");
-                } else {
-                    _logger.LogWarning($"Connection {connectionId} not authorized for session {sessionId}");
-                }
-
-                if (session.HostConnectionId == null && session.ClientConnectionId == null)
-                {
-                    session.Status = "ended";
-                    session.UpdatedAt = DateTime.UtcNow;
-                    _sessions.TryRemove(sessionId, out _);
-                    _logger.LogInformation($"Session {sessionId} ended");
-                }
-            }
-
-            _connectionToSession.TryRemove(connectionId, out _);
-            return Task.CompletedTask;
-        }
-
-        public Task<string?> GetSessionId(string connectionId)
-        {
-            _connectionToSession.TryGetValue(connectionId, out var sessionId);
-            if(sessionId == null) {
-                _logger.LogWarning($"Connection {connectionId} not found in session");
-                return Task.FromResult<string?>(null);
-            }
-            return Task.FromResult<string?>(sessionId);
-        }
-
-        public Task<bool> ValidateSession(string sessionId, string connectionId)
-        {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                _logger.LogWarning($"Invalid session ID: {sessionId}");
-                return Task.FromResult(false);
-            }
-
-            if (session.Status != "active")
-            {
-                _logger.LogWarning($"Session {sessionId} is not active");
-                return Task.FromResult(false);
-            }
-
-            if (session.HostConnectionId != connectionId && session.ClientConnectionId != connectionId)
-            {
-                _logger.LogWarning($"Connection {connectionId} not authorized for session {sessionId}");
-                return Task.FromResult(false);
-            }
-
-            return Task.FromResult(true);
-        }
-
-        public Task<string?> GetTargetConnectionId(string sessionId, string currentConnectionId)
-        {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                return Task.FromResult<string?>(null);
-            }
-
-            if (session.Status != "active")
-            {
-                return Task.FromResult<string?>(null);
-            }
-
-            return Task.FromResult(session.HostConnectionId == currentConnectionId ? 
-                session.ClientConnectionId : 
-                session.HostConnectionId);
-        }
-
-        public async Task<RemoteSession?> GetSession(string sessionId)
+        public async Task<RemoteSession?> GetSession(string sessionIdentifier)
         {
             return await _context.RemoteSessions
                 .Include(s => s.HostUser)
                 .Include(s => s.ClientUser)
-                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
+                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionIdentifier);
+        }
+
+        public async Task AddConnection(string sessionIdentifier, string connectionId, Guid userId)
+        {
+            var session = await GetSession(sessionIdentifier);
+            if (session == null)
+            {
+                throw new InvalidOperationException($"Session {sessionIdentifier} not found");
+            }
+
+            if (session.HostUserId == userId)
+            {
+                session.HostConnectionId = connectionId;
+            }
+            else if (session.ClientUserId == userId)
+            {
+                session.ClientConnectionId = connectionId;
+            }
+            else
+            {
+                throw new InvalidOperationException($"User {userId} is not authorized for session {sessionIdentifier}");
+            }
+
+            session.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RemoveConnection(string sessionIdentifier, string connectionId)
+        {
+            var session = await GetSession(sessionIdentifier);
+            if (session == null)
+            {
+                return;
+            }
+
+            if (session.HostConnectionId == connectionId)
+            {
+                session.HostConnectionId = null;
+            }
+            else if (session.ClientConnectionId == connectionId)
+            {
+                session.ClientConnectionId = null;
+            }
+
+            session.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> ValidateSession(string sessionIdentifier, string connectionId)
+        {
+            var session = await GetSession(sessionIdentifier);
+            if (session == null)
+            {
+                return false;
+            }
+
+            return session.HostConnectionId == connectionId || session.ClientConnectionId == connectionId;
+        }
+
+        public async Task<string?> GetTargetConnectionId(string sessionIdentifier, string connectionId)
+        {
+            var session = await GetSession(sessionIdentifier);
+            if (session == null)
+            {
+                return null;
+            }
+
+            return session.HostConnectionId == connectionId 
+                ? session.ClientConnectionId 
+                : session.HostConnectionId;
+        }
+
+        public async Task<string?> GetSessionId(string connectionId)
+        {
+            var session = await _context.RemoteSessions
+                .FirstOrDefaultAsync(s => s.HostConnectionId == connectionId || s.ClientConnectionId == connectionId);
+            
+            return session?.SessionIdentifier;
         }
     }
 }

@@ -28,13 +28,22 @@ namespace Server.Controllers
         {
             if (string.IsNullOrEmpty(user.Username))
             {
-                return BadRequest("Username are required.");
+                return BadRequest(new {
+                    success = false,
+                    message = "Username is required",
+                    code = "USERNAME_REQUIRED"
+                });
             }
 
             if (string.IsNullOrEmpty(user.Password))
             {
-                return BadRequest("Password are required.");
+                return BadRequest(new {
+                    success = false,
+                    message = "Password is required",
+                    code = "PASSWORD_REQUIRED"
+                });
             }
+
             user.Id = Guid.NewGuid();
             user.CreatedAt = DateTime.Now;
             user.UpdatedAt = DateTime.Now;
@@ -42,7 +51,11 @@ namespace Server.Controllers
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
             if (existingUser != null)
             {
-                return Conflict("Username already exists.");
+                return Conflict(new {
+                    success = false,
+                    message = "Username already exists",
+                    code = "USERNAME_EXISTS"
+                });
             }
 
             user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
@@ -50,7 +63,12 @@ namespace Server.Controllers
             await _context.SaveChangesAsync();
 
             var token = GenerateJwtToken(user);
-            return Ok(new { Token = token });
+            return Ok(new { 
+                success = true,
+                message = "Registration successful",
+                code = "REGISTRATION_SUCCESS",
+                data = new { Token = token }
+            });
         }
 
         [HttpPost("login")]
@@ -58,22 +76,39 @@ namespace Server.Controllers
         {
             if (string.IsNullOrEmpty(login.Username))
             {
-                return BadRequest("Username are required.");
+                return BadRequest(new {
+                    success = false,
+                    message = "Username is required",
+                    code = "USERNAME_REQUIRED"
+                });
             }
 
             if (string.IsNullOrEmpty(login.Password))
             {
-                return BadRequest("Password are required.");
+                return BadRequest(new {
+                    success = false,
+                    message = "Password is required",
+                    code = "PASSWORD_REQUIRED"
+                });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == login.Username);
             if (user == null || !BCrypt.Net.BCrypt.Verify(login.Password, user.Password))
             {
-                return Unauthorized("Invalid username or password.");
+                return Unauthorized(new {
+                    success = false,
+                    message = "Invalid username or password",
+                    code = "INVALID_CREDENTIALS"
+                });
             }
 
             var token = GenerateJwtToken(user);
-            return Ok(new { Token = token });
+            return Ok(new { 
+                success = true,
+                message = "Login successful",
+                code = "LOGIN_SUCCESS",
+                data = new { Token = token }
+            });
         }
 
         [HttpPost("logout")]
@@ -82,7 +117,11 @@ namespace Server.Controllers
             var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
             if (string.IsNullOrEmpty(token))
             {
-                return BadRequest("No token provided");
+                return BadRequest(new {
+                    success = false,
+                    message = "No token provided",
+                    code = "TOKEN_MISSING"
+                });
             }
 
             var handler = new JwtSecurityTokenHandler();
@@ -98,7 +137,11 @@ namespace Server.Controllers
             _context.BlacklistedTokens.Add(blacklistedToken);
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Successfully logged out" });
+            return Ok(new { 
+                success = true,
+                message = "Successfully logged out",
+                code = "LOGOUT_SUCCESS"
+            });
         }
 
         private string GenerateJwtToken(User user)

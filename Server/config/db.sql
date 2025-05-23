@@ -44,22 +44,23 @@ CREATE TABLE IF NOT EXISTS RemoteSessions (
 -- Create the input actions table
 CREATE TABLE IF NOT EXISTS InputActions (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    SessionId INT NOT NULL,
     SessionIdentifier VARCHAR(100) NOT NULL,
     Action TEXT NOT NULL,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    INDEX idx_session (SessionId)
+    INDEX idx_session (SessionIdentifier)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create the screen data table
 CREATE TABLE IF NOT EXISTS ScreenData (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     SessionId INT NOT NULL,
-    Data LONGTEXT NOT NULL,
+    SenderConnectionId VARCHAR(255) NOT NULL,
+    SignalType VARCHAR(50) NOT NULL,
+    SignalData JSON NOT NULL,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    INDEX idx_session (SessionId)
+    INDEX idx_session (SessionId),
+    INDEX idx_sender (SenderConnectionId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

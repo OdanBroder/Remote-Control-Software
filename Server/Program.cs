@@ -12,6 +12,7 @@ using Server.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.Tasks;
 
 // Load .env file
 DotNetEnv.Env.Load();
@@ -50,16 +51,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = "remote-control-client",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
+
+        // Add event handler for SignalR authentication
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/remotecontrolhub"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
-        builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+        builder => builder
+            .WithOrigins("https://localhost:5031", "http://localhost:5031")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            .SetIsOriginAllowed(origin => true)); // For development only
 });
 
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.MaximumReceiveMessageSize = 102400; // 100 KB
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.StreamBufferCapacity = 10;
+    options.MaximumParallelInvocationsPerClient = 1;
+});
+
 builder.Services.AddScoped<RemoteSessionService>();
 builder.Services.AddScoped<FileTransferService>();
 builder.Services.AddScoped<SessionQualityService>();
@@ -94,9 +126,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors("AllowAll");
 
-app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -105,6 +137,17 @@ app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseMiddleware<IpWhitelistMiddleware>();
 
 app.MapControllers();
-app.MapHub<RemoteControlHub>("/remote-control-access");
+app.MapHub<RemoteControlHub>("/remotecontrolhub", options =>
+{
+    options.CloseOnAuthenticationExpiration = true;
+    options.ApplicationMaxBufferSize = 102400; // 100 KB
+    options.TransportMaxBufferSize = 102400; // 100 KB
+    options.TransportSendTimeout = TimeSpan.FromSeconds(30);
+    options.WebSockets.CloseTimeout = TimeSpan.FromSeconds(30);
+});
+
+// Configure static files
+app.UseStaticFiles();
+app.MapFallbackToFile("remote_control_test.html");
 
 app.Run();

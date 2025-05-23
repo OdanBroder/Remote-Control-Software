@@ -50,23 +50,36 @@ namespace Server.Controllers
 
             if (session == null)
             {
-                return NotFound(new { Message = "Session not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "Session not found",
+                    code = "SESSION_NOT_FOUND"
+                });
             }
 
             // Validate session state
             if (!await ValidateSessionState(session))
             {
-                return BadRequest(new { Message = "Session is not active" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "Session is not active or has expired",
+                    code = "SESSION_INACTIVE"
+                });
             }
 
             return Ok(new 
             { 
-                SessionId = session.SessionIdentifier,
-                Status = session.Status,
-                HostUsername = session.HostUser?.Username,
-                ClientUsername = session.ClientUser?.Username,
-                CreatedAt = session.CreatedAt,
-                LastActivity = session.UpdatedAt
+                success = true,
+                message = "Session details retrieved successfully",
+                code = "SESSION_FOUND",
+                data = new {
+                    SessionId = session.SessionIdentifier,
+                    Status = session.Status,
+                    HostUsername = session.HostUser?.Username,
+                    ClientUsername = session.ClientUser?.Username,
+                    CreatedAt = session.CreatedAt,
+                    LastActivity = session.UpdatedAt
+                }
             });
         }
 
@@ -76,13 +89,21 @@ namespace Server.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "Authentication required",
+                    code = "AUTH_REQUIRED"
+                });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
-                return NotFound(new { Message = "User not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "User account not found",
+                    code = "USER_NOT_FOUND"
+                });
             }
 
             // Check if user already has an active session
@@ -92,7 +113,11 @@ namespace Server.Controllers
 
             if (existingSession != null)
             {
-                return BadRequest(new { Message = "User already has an active session" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "User already has an active session",
+                    code = "SESSION_EXISTS"
+                });
             }
 
             var sessionId = Guid.NewGuid().ToString();
@@ -110,7 +135,12 @@ namespace Server.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation($"Session {sessionId} started by user {user.Username}");
-            return Ok(new { SessionId = sessionId });
+            return Ok(new { 
+                success = true,
+                message = "Session started successfully",
+                code = "SESSION_STARTED",
+                data = new { SessionId = sessionId }
+            });
         }
 
         [HttpPost("join/{sessionId}")]
@@ -119,13 +149,21 @@ namespace Server.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "Authentication required",
+                    code = "AUTH_REQUIRED"
+                });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
-                return NotFound(new { Message = "User not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "User account not found",
+                    code = "USER_NOT_FOUND"
+                });
             }
 
             // Check if user already has an active session
@@ -135,7 +173,11 @@ namespace Server.Controllers
 
             if (existingSession != null)
             {
-                return BadRequest(new { Message = "User already has an active session" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "User already has an active session",
+                    code = "SESSION_EXISTS"
+                });
             }
 
             var session = await _context.RemoteSessions
@@ -143,17 +185,29 @@ namespace Server.Controllers
 
             if (session == null)
             {
-                return NotFound(new { Message = "Session not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "Session not found",
+                    code = "SESSION_NOT_FOUND"
+                });
             }
 
             if (!await ValidateSessionState(session))
             {
-                return BadRequest(new { Message = "Session is not active" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "Session is not active or has expired",
+                    code = "SESSION_INACTIVE"
+                });
             }
 
             if (session.ClientUserId != null)
             {
-                return BadRequest(new { Message = "Session is full" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "Session is already full",
+                    code = "SESSION_FULL"
+                });
             }
 
             session.ClientUserId = user.Id;
@@ -161,43 +215,56 @@ namespace Server.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation($"User {user.Username} joined session {sessionId}");
-            return Ok(new { Message = "Successfully joined session" });
+            return Ok(new { 
+                success = true,
+                message = "Successfully joined session",
+                code = "SESSION_JOINED",
+                data = new { SessionId = sessionId }
+            });
         }
 
         [HttpPost("stop/{sessionId}")]
         public async Task<IActionResult> StopSession(string sessionId)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
+            try
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { Message = "User not authenticated" });
+                }
+
+                var session = await _context.RemoteSessions
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = "Session not found" });
+                }
+
+                if (session.Status == "ended")
+                {
+                    return BadRequest(new { Message = "Session is already stopped" });
+                }
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
+                if (user == null || (user.Id != session.HostUserId && user.Id != session.ClientUserId))
+                {
+                    return Unauthorized(new { Message = "Not authorized to stop this session" });
+                }
+
+                session.Status = "ended";
+                session.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Session {sessionId} stopped by user {user.Username}");
+                return Ok(new { Message = "Session stopped successfully", SessionId = sessionId });
             }
-
-            var session = await _context.RemoteSessions
-                .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
-
-            if (session == null)
+            catch (Exception ex)
             {
-                return NotFound(new { Message = "Session not found" });
+                _logger.LogError(ex, $"Error stopping session {sessionId}");
+                return StatusCode(500, new { Message = "An error occurred while stopping the session" });
             }
-
-            if (session.Status == "ended")
-            {
-                return BadRequest(new { Message = "Session is already stopped" });
-            }
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
-            if (user == null || (user.Id != session.HostUserId && user.Id != session.ClientUserId))
-            {
-                return Unauthorized(new { Message = "Not authorized to stop this session" });
-            }
-
-            session.Status = "ended";
-            session.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation($"Session {sessionId} stopped by user {user.Username}");
-            return Ok(new { Message = "Session stopped" });
         }
 
         [HttpPost("connect/{sessionId}")]
@@ -228,15 +295,25 @@ namespace Server.Controllers
                 return BadRequest(new { Message = "Session is not active" });
             }
 
-            var connectionId = Guid.NewGuid().ToString();
+            // Get the actual SignalR connection ID from the request
+            var connectionId = HttpContext.Request.Headers["X-SignalR-Connection-Id"].ToString();
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                return BadRequest(new { Message = "No SignalR connection ID provided" });
+            }
+
+            Console.WriteLine($"[DEBUG] Connecting user {user.Username} to session {sessionId}");
+            Console.WriteLine($"[DEBUG] Connection ID: {connectionId}");
 
             if (session.HostUserId == user.Id)
             {
                 session.HostConnectionId = connectionId;
+                Console.WriteLine($"[DEBUG] Set as host connection");
             }
             else if (session.ClientUserId == user.Id)
             {
                 session.ClientConnectionId = connectionId;
+                Console.WriteLine($"[DEBUG] Set as client connection");
             }
             else
             {
@@ -298,13 +375,21 @@ namespace Server.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "Authentication required",
+                    code = "AUTH_REQUIRED"
+                });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
-                return NotFound(new { Message = "User not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "User account not found",
+                    code = "USER_NOT_FOUND"
+                });
             }
 
             var sessions = await _context.RemoteSessions
@@ -317,11 +402,17 @@ namespace Server.Controllers
                     HostUsername = s.HostUser != null ? s.HostUser.Username : null,
                     ClientUsername = s.ClientUser != null ? s.ClientUser.Username : null,
                     CreatedAt = s.CreatedAt,
-                    LastActivity = s.UpdatedAt
+                    LastActivity = s.UpdatedAt,
+                    Status = s.Status
                 })
                 .ToListAsync();
 
-            return Ok(sessions);
+            return Ok(new {
+                success = true,
+                message = sessions.Count > 0 ? $"Found {sessions.Count} active session(s)" : "No active sessions found",
+                code = sessions.Count > 0 ? "SESSIONS_FOUND" : "NO_SESSIONS",
+                data = sessions
+            });
         }
     }
 }
