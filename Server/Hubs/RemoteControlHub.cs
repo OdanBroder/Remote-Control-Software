@@ -6,6 +6,7 @@ using Server.Services;
 using Server.Models;
 using Server.Data;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace Server.Hubs
 {
@@ -120,44 +121,117 @@ namespace Server.Hubs
             }
         }
 
-        public async Task SendInputAction(string sessionId, string action)
+        public async Task<object> SendInputAction(string sessionId, string action)
         {
             try
             {
-                if (!await _sessionService.ValidateSession(sessionId, Context.ConnectionId))
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
                 {
-                    _logger.LogWarning($"Invalid session attempt: {sessionId} by {Context.ConnectionId}");
-                    Console.WriteLine($"[WARNING] Invalid session attempt: {sessionId} by {Context.ConnectionId}");
-                    await Clients.Caller.SendAsync("Error", "Invalid session");
-                    return;
+                    _logger.LogWarning("Input action attempt without user authentication");
+                    return new { success = false, message = "Authentication required", code = "AUTH_REQUIRED" };
                 }
 
-                var targetConnectionId = await _sessionService.GetTargetConnectionId(sessionId, Context.ConnectionId);
-                if (string.IsNullOrEmpty(targetConnectionId))
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
+                if (user == null)
                 {
-                    _logger.LogWarning($"No target connection found for session: {sessionId}");
-                    Console.WriteLine($"[WARNING] No target connection found for session: {sessionId}");
-                    await Clients.Caller.SendAsync("Error", "No target connection found");
-                    return;
+                    _logger.LogWarning($"User not found: {userId}");
+                    return new { success = false, message = "User not found", code = "USER_NOT_FOUND" };
                 }
 
-                Console.WriteLine($"[DEBUG] Sending input action to client {targetConnectionId}:");
+                var session = await _context.RemoteSessions
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId &&
+                        (s.HostUserId == user.Id || s.ClientUserId == user.Id));
+
+                if (session == null)
+                {
+                    _logger.LogWarning($"Session not found or not authorized: {sessionId}");
+                    return new { success = false, message = "Session not found or not authorized", code = "SESSION_NOT_FOUND" };
+                }
+
+                if (session.Status != "active")
+                {
+                    _logger.LogWarning($"Session is not active: {sessionId}");
+                    return new { success = false, message = "Session is not active", code = "SESSION_INACTIVE" };
+                }
+
+                // Check if client is connected
+                if (string.IsNullOrEmpty(session.ClientConnectionId))
+                {
+                    _logger.LogWarning($"Client is not connected for session: {sessionId}");
+                    return new { success = false, message = "Client is not connected", code = "CLIENT_DISCONNECTED" };
+                }
+
+                // Only allow host to send input actions
+                if (user.Id != session.HostUserId)
+                {
+                    _logger.LogWarning($"Non-host user attempted to send input: {userId}");
+                    return new { success = false, message = "Only host can send input actions", code = "NOT_HOST" };
+                }
+
+                // Validate the input action
+                var inputAction = new InputAction
+                {
+                    SessionIdentifier = sessionId,
+                    Action = action,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Save to database
+                _context.InputActions.Add(inputAction);
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"[DEBUG] Sending input action to client {session.ClientConnectionId}:");
                 Console.WriteLine($"[DEBUG] Session ID: {sessionId}");
                 Console.WriteLine($"[DEBUG] From Connection ID: {Context.ConnectionId}");
                 Console.WriteLine($"[DEBUG] Action: {action}");
+                Console.WriteLine($"[DEBUG] Host Username: {user.Username}");
 
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveInput", action);
+                await Clients.Client(session.ClientConnectionId).SendAsync("ReceiveInput", action);
                 
-                Console.WriteLine($"[SUCCESS] Input action sent successfully to client {targetConnectionId}");
-                _logger.LogDebug($"Input action sent for session: {sessionId}");
+                Console.WriteLine($"[SUCCESS] Input action sent successfully to client {session.ClientConnectionId}");
+                _logger.LogInformation($"Input action processed by host {user.Username} in session {sessionId}");
+                
+                return new { success = true, message = "Input action sent successfully", code = "INPUT_SENT" };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[ERROR] Failed to send input action: {ex.Message}");
                 Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
                 _logger.LogError(ex, $"Error sending input action for session: {sessionId}");
-                await Clients.Caller.SendAsync("Error", "Failed to send input action: " + ex.Message);
-                throw;
+                return new { success = false, message = "Failed to send input action: " + ex.Message, code = "INPUT_ERROR" };
+            }
+        }
+
+        public async Task ReportInputError(object errorData)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("Error report attempt without user authentication");
+                    return;
+                }
+
+                _logger.LogError($"Input error reported by user {userId}: {errorData}");
+                Console.WriteLine($"[ERROR] Input error reported: {errorData}");
+                
+                // Save error to database
+                var errorLog = new InputError
+                {
+                    UserId = Guid.Parse(userId),
+                    ErrorData = errorData?.ToString() ?? "Unknown error",
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                _context.InputErrors.Add(errorLog);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing input error report");
+                Console.WriteLine($"[ERROR] Failed to process input error report: {ex.Message}");
             }
         }
 
@@ -178,13 +252,65 @@ namespace Server.Hubs
                     return;
                 }
 
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCSignal", signal);
-                _logger.LogDebug($"WebRTC signal sent for session: {sessionId}");
+                // Log the signal being forwarded
+                _logger.LogInformation($"Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
+                Console.WriteLine($"[DEBUG] Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
+
+                // Forward the signal to the target connection
+                await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCSignal", new
+                {
+                    signalType = signal.Split(':')[0],
+                    signalData = signal.Split(':')[1],
+                    fromConnectionId = Context.ConnectionId
+                });
+
+                _logger.LogInformation($"WebRTC signal forwarded successfully");
+                Console.WriteLine($"[DEBUG] WebRTC signal forwarded successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error sending WebRTC signal for session: {sessionId}");
-                throw;
+                _logger.LogError(ex, $"Error forwarding WebRTC signal for session: {sessionId}");
+                Console.WriteLine($"[ERROR] Failed to forward WebRTC signal: {ex.Message}");
+                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        public async Task SendWebRTCState(string sessionId, string state)
+        {
+            try
+            {
+                if (!await _sessionService.ValidateSession(sessionId, Context.ConnectionId))
+                {
+                    _logger.LogWarning($"Invalid session attempt: {sessionId} by {Context.ConnectionId}");
+                    return;
+                }
+
+                var targetConnectionId = await _sessionService.GetTargetConnectionId(sessionId, Context.ConnectionId);
+                if (string.IsNullOrEmpty(targetConnectionId))
+                {
+                    _logger.LogWarning($"No target connection found for session: {sessionId}");
+                    return;
+                }
+
+                // Log the state update
+                _logger.LogInformation($"Forwarding WebRTC state from {Context.ConnectionId} to {targetConnectionId}");
+                Console.WriteLine($"[DEBUG] Forwarding WebRTC state from {Context.ConnectionId} to {targetConnectionId}");
+
+                // Forward the state to the target connection
+                await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCState", new
+                {
+                    state = state,
+                    fromConnectionId = Context.ConnectionId
+                });
+
+                _logger.LogInformation($"WebRTC state forwarded successfully");
+                Console.WriteLine($"[DEBUG] WebRTC state forwarded successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error forwarding WebRTC state for session: {sessionId}");
+                Console.WriteLine($"[ERROR] Failed to forward WebRTC state: {ex.Message}");
+                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
             }
         }
     }

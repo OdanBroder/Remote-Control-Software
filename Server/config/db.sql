@@ -50,19 +50,53 @@ CREATE TABLE IF NOT EXISTS InputActions (
     INDEX idx_session (SessionIdentifier)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create the screen data table
-CREATE TABLE IF NOT EXISTS ScreenData (
+-- Create a reference table for SignalType (unchanged from previous suggestion)
+CREATE TABLE IF NOT EXISTS SignalTypes (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    SessionId INT NOT NULL,
-    SenderConnectionId VARCHAR(255) NOT NULL,
-    SignalType VARCHAR(50) NOT NULL,
-    SignalData JSON NOT NULL,
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
-    INDEX idx_session (SessionId),
-    INDEX idx_sender (SenderConnectionId)
+    TypeName VARCHAR(50) NOT NULL UNIQUE,
+    Description TEXT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Insert WebRTC-specific signal types
+INSERT INTO SignalTypes (TypeName, Description) VALUES
+('sdp_offer', 'WebRTC SDP offer for session initiation'),
+('sdp_answer', 'WebRTC SDP answer for session response'),
+('ice_candidate', 'WebRTC ICE candidate for P2P connection'),
+('metadata', 'Screen-sharing metadata (e.g., resolution, frame rate)');
+
+-- Create the revised ScreenData table
+CREATE TABLE IF NOT EXISTS ScreenData (
+    Id BIGINT AUTO_INCREMENT PRIMARY KEY, -- BIGINT for scalability
+    SessionId INT NOT NULL, -- References RemoteSessions.Id
+    SenderConnectionId VARCHAR(100) NOT NULL, -- WebRTC peer connection ID or WebSocket ID
+    WebRTCConnectionId VARCHAR(100), -- Optional WebRTC connection ID
+    SignalTypeId INT NOT NULL, -- References SignalTypes (e.g., sdp_offer, ice_candidate)
+    SignalData JSON NOT NULL, -- Stores SDP, ICE candidates, or metadata as JSON
+    FrameType ENUM('keyframe', 'delta') DEFAULT 'delta', -- Frame type for video data
+    QualityLevel ENUM('low', 'medium', 'high') DEFAULT 'medium', -- Quality level for video data
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (SignalTypeId) REFERENCES SignalTypes(Id) ON DELETE RESTRICT,
+    INDEX idx_session (SessionId),
+    INDEX idx_sender (SenderConnectionId),
+    INDEX idx_signal_type (SignalTypeId),
+    INDEX idx_created_at (CreatedAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Stored procedure to clean up old ScreenData records
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS CleanupOldScreenData()
+BEGIN
+    DELETE FROM ScreenData 
+    WHERE CreatedAt < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY); -- Retain data for 30 days
+END //
+DELIMITER ;
+
+-- Event to run the cleanup procedure daily
+CREATE EVENT IF NOT EXISTS DailyScreenDataCleanup
+ON SCHEDULE EVERY 1 DAY
+DO CALL CleanupOldScreenData;
 
 -- Create BlacklistedToken table
 CREATE TABLE IF NOT EXISTS `BlacklistedTokens` (
@@ -219,3 +253,48 @@ CREATE TABLE IpWhitelists (
 CREATE INDEX IX_TwoFactorAuths_UserId ON TwoFactorAuths(UserId);
 CREATE INDEX IX_IpWhitelists_UserId ON IpWhitelists(UserId);
 CREATE INDEX IX_IpWhitelists_IpAddress ON IpWhitelists(IpAddress); 
+
+-- Create WebRTCConnections table
+CREATE TABLE IF NOT EXISTS WebRTCConnections (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    ConnectionId VARCHAR(100) NOT NULL,
+    ConnectionType ENUM('host', 'client') NOT NULL,
+    IceCandidates TEXT,
+    Offer TEXT,
+    Answer TEXT,
+    Status ENUM('pending', 'connected', 'disconnected') DEFAULT 'pending',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    INDEX idx_session (SessionId),
+    INDEX idx_connection (ConnectionId),
+    INDEX idx_status (Status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create WebRTCStats table
+CREATE TABLE IF NOT EXISTS WebRTCStats (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    SessionId INT NOT NULL,
+    ConnectionId VARCHAR(100) NOT NULL,
+    BytesReceived BIGINT NOT NULL DEFAULT 0,
+    BytesSent BIGINT NOT NULL DEFAULT 0,
+    PacketsLost INT NOT NULL DEFAULT 0,
+    RoundTripTime FLOAT,
+    Jitter FLOAT,
+    Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (SessionId) REFERENCES RemoteSessions(Id) ON DELETE CASCADE,
+    INDEX idx_session (SessionId),
+    INDEX idx_connection (ConnectionId),
+    INDEX idx_timestamp (Timestamp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; 
+
+-- Create the input errors table
+CREATE TABLE IF NOT EXISTS `InputErrors` (
+    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+    `UserId` CHAR(36) NOT NULL,
+    `ErrorData` TEXT NOT NULL,
+    `CreatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_user_id` (`UserId`),
+    INDEX `idx_created_at` (`CreatedAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; 

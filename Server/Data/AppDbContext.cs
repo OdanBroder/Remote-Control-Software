@@ -11,6 +11,7 @@ namespace Server.Data
         public DbSet<User> Users { get; set; }
         public DbSet<RemoteSession> RemoteSessions { get; set; }
         public DbSet<InputAction> InputActions { get; set; }
+        public DbSet<InputError> InputErrors { get; set; }
         public DbSet<ScreenData> ScreenData { get; set; }
         public DbSet<BlacklistedToken> BlacklistedTokens { get; set; }
         public DbSet<FileTransfer> FileTransfers { get; set; }
@@ -21,6 +22,9 @@ namespace Server.Data
         public DbSet<SessionAuditLog> SessionAuditLogs { get; set; }
         public DbSet<TwoFactorAuth> TwoFactorAuths { get; set; }
         public DbSet<IpWhitelist> IpWhitelists { get; set; }
+        public DbSet<WebRTCConnection> WebRTCConnections { get; set; }
+        public DbSet<WebRTCStats> WebRTCStats { get; set; }
+        public DbSet<SignalType> SignalTypes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

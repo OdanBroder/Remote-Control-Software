@@ -4,6 +4,7 @@
 <head>
     <title>Remote Control Test</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         .container {
             margin: 20px;
@@ -63,6 +64,38 @@
             margin: 5px 0;
             padding: 5px;
             border-left: 3px solid #4CAF50;
+        }
+
+        .webrtc-status {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .webrtc-status div {
+            margin: 5px 0;
+        }
+        .webrtc-status .connected {
+            color: green;
+        }
+        .webrtc-status .disconnected {
+            color: red;
+        }
+
+        .screen-container {
+            max-width: 800px;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            min-height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f5f5f5;
+        }
+        .screen-container video,
+        .screen-container img {
+            max-width: 100%;
+            height: auto;
         }
     </style>
 </head>
@@ -124,10 +157,14 @@
 
         <!-- Screen Data -->
         <div class="section">
-            <h3>Screen Data</h3>
-            <button onclick="getScreen()">Get Screen</button>
-            <button onclick="updateScreen()">Update Screen (Test)</button>
-            <div id="screen"></div>
+            <h3>Basic Screen Sharing</h3>
+            <div class="screen-sharing-controls">
+                <button onclick="startScreenSharing()">Start Basic Screen Sharing</button>
+                <button onclick="stopScreenSharing()">Stop Basic Screen Sharing</button>
+                <button onclick="getScreen()">Get Screen</button>
+                <button onclick="updateScreen()">Update Screen (Test)</button>
+            </div>
+            <div id="basicScreen" class="screen-container"></div>
             <div id="screenResponse" class="response"></div>
         </div>
 
@@ -138,6 +175,7 @@
             <div>Last Activity: <span id="lastActivity">Never</span></div>
             <div>Data Received: <span id="dataReceivedCount">0</span></div>
             <div>Connection State: <span id="connectionState">Disconnected</span></div>
+            <button onclick="clearLogs()" style="margin: 10px 0;">Clear Logs</button>
             <div id="logs" class="response"></div>
         </div>
 
@@ -145,6 +183,22 @@
         <div class="section">
             <h3>Test Connection</h3>
             <button onclick="testHubConnection()">Test Hub Connection</button>
+        </div>
+
+        <!-- WebRTC Screen Sharing -->
+        <div class="section">
+            <h3>WebRTC Screen Sharing</h3>
+            <div class="webrtc-status">
+                <div>ICE Connection State: <span id="iceConnectionState">disconnected</span></div>
+                <div>Signaling State: <span id="signalingState">closed</span></div>
+                <div>Data Channel State: <span id="dataChannelState">closed</span></div>
+            </div>
+            <div class="screen-sharing-controls">
+                <button onclick="startWebRTCScreenSharing()">Start WebRTC Screen Sharing</button>
+                <button onclick="stopWebRTCScreenSharing()">Stop WebRTC Screen Sharing</button>
+            </div>
+            <div id="webrtcScreen" class="screen-container"></div>
+            <div id="webrtcResponse" class="response"></div>
         </div>
     </div>
 
@@ -156,11 +210,29 @@
         let dataReceivedCount = 0;
         let connectedSince = null;
 
+        // WebRTC Configuration
+        const rtcConfiguration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        let peerConnection = null;
+        let dataChannel = null;
+        let screenStream = null;
+
         // Utility Functions
         function displayResponse(elementId, data, isError = false) {
             const element = document.getElementById(elementId);
             element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
             element.className = `response ${isError ? 'error' : 'success'}`;
+        }
+
+        function clearLogs() {
+            const logs = document.getElementById('logs');
+            logs.innerHTML = '';
+            log('Logs cleared');
         }
 
         function log(message) {
@@ -431,9 +503,14 @@
                 });
 
                 connection.on("ReceiveInput", (serializedAction) => {
-                    log(`[DEBUG] Received input action: ${serializedAction}`);
                     try {
+                        log(`[DEBUG] Received input action: ${serializedAction}`);
                         const action = JSON.parse(serializedAction);
+                        
+                        if (!action || !action.type || !action.action) {
+                            throw new Error('Invalid input action format');
+                        }
+
                         log(`[DEBUG] Parsed action details:
                             Type: ${action.type}
                             Action: ${action.action}
@@ -446,22 +523,40 @@
 
                         // Add a small delay to ensure proper handling
                         setTimeout(() => {
-                            if (action.type === "keyboard") {
-                                log(`[DEBUG] Processing keyboard action: ${action.action} ${action.key}`);
-                                simulateKeyPress(action.key, action.modifiers || []);
-                            }
-                            else if (action.type === "mouse") {
-                                log(`[DEBUG] Processing mouse action: ${action.action} at (${action.x}, ${action.y})`);
-                                if (action.action === "move") {
-                                    simulateMouseMove(action.x, action.y);
-                                } else if (action.action === "click") {
-                                    simulateMouseClick(action.x, action.y, action.button);
+                            try {
+                                if (action.type === "keyboard") {
+                                    log(`[DEBUG] Processing keyboard action: ${action.action} ${action.key}`);
+                                    simulateKeyPress(action.key, action.modifiers || []);
                                 }
+                                else if (action.type === "mouse") {
+                                    log(`[DEBUG] Processing mouse action: ${action.action} at (${action.x}, ${action.y})`);
+                                    if (action.action === "move") {
+                                        simulateMouseMove(action.x, action.y);
+                                    } else if (action.action === "click") {
+                                        simulateMouseClick(action.x, action.y, action.button);
+                                    } else {
+                                        throw new Error(`Unsupported mouse action: ${action.action}`);
+                                    }
+                                } else {
+                                    throw new Error(`Unsupported input type: ${action.type}`);
+                                }
+                            } catch (simError) {
+                                log(`[ERROR] Error simulating input: ${simError.message}`);
+                                // Notify server about the error
+                                connection.invoke("ReportInputError", {
+                                    error: simError.message,
+                                    action: action
+                                }).catch(err => log(`[ERROR] Failed to report input error: ${err.message}`));
                             }
                         }, 100); // Small delay to ensure proper sequencing
                     } catch (error) {
                         log(`[ERROR] Error processing input: ${error.message}`);
                         log(`[ERROR] Raw serialized action: ${serializedAction}`);
+                        // Notify server about the error
+                        connection.invoke("ReportInputError", {
+                            error: error.message,
+                            rawAction: serializedAction
+                        }).catch(err => log(`[ERROR] Failed to report input error: ${err.message}`));
                     }
                 });
 
@@ -475,8 +570,8 @@
                     
                     const img = document.createElement('img');
                     img.src = `data:image/jpeg;base64,${imageData}`;
-                    document.getElementById('screen').innerHTML = '';
-                    document.getElementById('screen').appendChild(img);
+                    document.getElementById('basicScreen').innerHTML = '';
+                    document.getElementById('basicScreen').appendChild(img);
                 });
 
                 connection.on("TestMessage", (message) => {
@@ -491,6 +586,142 @@
                         Message: ${message}
                         Type: ${typeof message}
                         Timestamp: ${new Date().toISOString()}`);
+                });
+
+                // Add WebRTC signal handlers
+                connection.on("ReceiveWebRTCSignal", async (signal) => {
+                    try {
+                        // Create peer connection if it doesn't exist
+                        if (!peerConnection) {
+                            log('Creating new peer connection for receiving signals');
+                            peerConnection = new RTCPeerConnection({
+                                iceServers: [
+                                    { urls: 'stun:stun.l.google.com:19302' },
+                                    { urls: 'stun:stun1.l.google.com:19302' }
+                                ],
+                                iceCandidatePoolSize: 10,
+                                bundlePolicy: 'max-bundle',
+                                rtcpMuxPolicy: 'require',
+                                iceTransportPolicy: 'all'
+                            });
+
+                            // Set up peer connection event handlers
+                            peerConnection.onicecandidate = async (event) => {
+                                if (event.candidate) {
+                                    await sendWebRTCSignal('ice-candidate', JSON.stringify(event.candidate));
+                                }
+                            };
+
+                            peerConnection.onconnectionstatechange = () => {
+                                const state = peerConnection.connectionState;
+                                document.getElementById('iceConnectionState').textContent = state;
+                                document.getElementById('iceConnectionState').className = 
+                                    state === 'connected' ? 'connected' : 'disconnected';
+                                
+                                if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+                                    log(`WebRTC connection ${state}, attempting to restart...`);
+                                    stopWebRTCScreenSharing();
+                                    setTimeout(() => startWebRTCScreenSharing(), 2000);
+                                }
+                            };
+
+                            peerConnection.onsignalingstatechange = () => {
+                                const state = peerConnection.signalingState;
+                                document.getElementById('signalingState').textContent = state;
+                                log(`WebRTC signaling state changed to: ${state}`);
+                            };
+
+                            peerConnection.oniceconnectionstatechange = () => {
+                                const state = peerConnection.iceConnectionState;
+                                log(`ICE connection state changed to: ${state}`);
+                            };
+
+                            peerConnection.onicegatheringstatechange = () => {
+                                const state = peerConnection.iceGatheringState;
+                                log(`ICE gathering state changed to: ${state}`);
+                            };
+
+                            // Set up video track handler
+                            peerConnection.ontrack = (event) => {
+                                const videoElement = document.createElement('video');
+                                videoElement.autoplay = true;
+                                videoElement.playsInline = true;
+                                videoElement.style.width = '100%';
+                                videoElement.style.height = 'auto';
+                                videoElement.style.maxWidth = '100%';
+                                videoElement.style.objectFit = 'contain';
+                                
+                                if (event.streams && event.streams[0]) {
+                                    const stream = event.streams[0];
+                                    videoElement.srcObject = stream;
+                                    
+                                    stream.onended = () => {
+                                        log('Remote stream ended');
+                                        stopWebRTCScreenSharing();
+                                    };
+                                }
+
+                                const screenElement = document.getElementById('webrtcScreen');
+                                screenElement.innerHTML = '';
+                                screenElement.appendChild(videoElement);
+                                
+                                log('Remote video stream received and displayed');
+                            };
+                        }
+
+                        log(`Received WebRTC ${signal.signalType} signal from ${signal.fromConnectionId}`);
+
+                        switch (signal.signalType) {
+                            case 'offer':
+                                await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(signal.signalData)));
+                                const answer = await peerConnection.createAnswer({
+                                    offerToReceiveVideo: true,
+                                    offerToReceiveAudio: false
+                                });
+                                await peerConnection.setLocalDescription(answer);
+                                await sendWebRTCSignal('answer', JSON.stringify(answer));
+                                break;
+
+                            case 'answer':
+                                await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(signal.signalData)));
+                                break;
+
+                            case 'ice-candidate':
+                                if (peerConnection.remoteDescription) {
+                                    await peerConnection.addIceCandidate(new RTCIceCandidate(JSON.parse(signal.signalData)));
+                                } else {
+                                    log('Received ICE candidate before remote description, will be added when remote description is set');
+                                }
+                                break;
+                        }
+
+                        log(`WebRTC ${signal.signalType} signal processed successfully`);
+                    } catch (error) {
+                        log(`Error processing WebRTC signal: ${error.message}`);
+                        // If there's an error, clean up the peer connection
+                        if (peerConnection) {
+                            stopWebRTCScreenSharing();
+                        }
+                    }
+                });
+
+                connection.on("ReceiveWebRTCState", (state) => {
+                    try {
+                        log(`Received WebRTC state update from ${state.fromConnectionId}: ${state.state}`);
+                        
+                        // Update UI with state
+                        document.getElementById('iceConnectionState').textContent = state.state;
+                        document.getElementById('iceConnectionState').className = 
+                            state.state === 'connected' ? 'connected' : 'disconnected';
+                        
+                        if (state.state === 'failed' || state.state === 'disconnected' || state.state === 'closed') {
+                            log(`WebRTC connection ${state.state}, attempting to restart...`);
+                            stopWebRTCScreenSharing();
+                            setTimeout(() => startWebRTCScreenSharing(), 2000);
+                        }
+                    } catch (error) {
+                        log(`Error processing WebRTC state: ${error.message}`);
+                    }
                 });
 
                 log(`Connecting to hub at: ${HUB_URL}`);
@@ -610,13 +841,21 @@
                 // First try to send through SignalR
                 if (connection && connection.state === signalR.HubConnectionState.Connected) {
                     log('Sending input through SignalR...');
-                    await connection.invoke("SendInputAction", sessionId, JSON.stringify(inputData));
-                    log('Input sent through SignalR successfully');
-                    displayResponse('inputResponse', {
-                        success: true,
-                        message: 'Input sent successfully through SignalR',
-                        code: 'INPUT_SENT'
-                    });
+                    try {
+                        const result = await connection.invoke("SendInputAction", sessionId, JSON.stringify(inputData));
+                        if (result && result.success === false) {
+                            throw new Error(result.message || 'Failed to send input');
+                        }
+                        log('Input sent through SignalR successfully');
+                        displayResponse('inputResponse', {
+                            success: true,
+                            message: 'Input sent successfully through SignalR',
+                            code: 'INPUT_SENT'
+                        });
+                    } catch (signalRError) {
+                        log(`SignalR error: ${signalRError.message}`);
+                        throw signalRError; // Re-throw to be caught by outer catch
+                    }
                     return;
                 }
 
@@ -637,17 +876,17 @@
                 const data = await response.json();
                 log(`Server response: ${JSON.stringify(data)}`);
 
-                if (response.ok) {
-                    log(`Input sent successfully: ${type} ${value}`);
-                } else {
-                    log(`Input send failed: ${data.message}`);
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to send input');
                 }
-                displayResponse('inputResponse', data, !response.ok);
+
+                log(`Input sent successfully: ${type} ${value}`);
+                displayResponse('inputResponse', data);
             } catch (err) {
                 log(`Input send error: ${err.message}`);
                 displayResponse('inputResponse', {
                     success: false,
-                    message: 'Failed to send input',
+                    message: err.message || 'Failed to send input',
                     code: 'INPUT_SEND_ERROR'
                 }, true);
             }
@@ -684,11 +923,7 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    const img = document.createElement('img');
-                    img.src = `data:image/jpeg;base64,${data.data}`;
-                    document.getElementById('screen').innerHTML = '';
-                    document.getElementById('screen').appendChild(img);
-                    log('Screen data received successfully');
+                    log('Screen update requested successfully');
                 }
                 displayResponse('screenResponse', data, !response.ok);
             } catch (err) {
@@ -704,42 +939,204 @@
 
         async function updateScreen() {
             if (!token) {
-                displayResponse('screenResponse', { error: 'Please login first' }, true);
+                displayResponse('screenResponse', { 
+                    success: false,
+                    message: 'Please login first',
+                    code: 'AUTH_REQUIRED'
+                }, true);
                 return;
             }
 
             const sessionId = document.getElementById('sessionId').value;
             if (!sessionId) {
-                displayResponse('screenResponse', { error: 'Please enter a session ID' }, true);
+                displayResponse('screenResponse', { 
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'SESSION_ID_REQUIRED'
+                }, true);
                 return;
             }
 
-            // Create a test image (1x1 pixel)
-            const canvas = document.createElement('canvas');
-            canvas.width = 1;
-            canvas.height = 1;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = 'red';
-            ctx.fillRect(0, 0, 1, 1);
-            const testImage = canvas.toDataURL('image/jpeg').split(',')[1];
-
             try {
+                // Request screen capture with user gesture
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'always',
+                        displaySurface: 'monitor',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    }
+                }).catch(err => {
+                    throw new Error('Screen capture permission denied or cancelled');
+                });
+
+                // Create video element to capture frame
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+
+                // Create canvas and draw frame
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                // Convert to JPEG with quality 0.7
+                const imageData = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+
+                const screenData = {
+                    sessionIdentifier: sessionId,
+                    data: imageData,
+                    width: canvas.width,
+                    height: canvas.height,
+                    createdAt: new Date().toISOString()
+                };
+
                 const response = await fetch(`${API_BASE_URL}/api/remote/screen`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        sessionIdentifier: sessionId,
-                        data: testImage
-                    })
+                    body: JSON.stringify(screenData)
                 });
+
                 const data = await response.json();
+                if (response.ok) {
+                    log('Screen data sent successfully');
+                } else {
+                    log(`Screen data send failed: ${data.message}`);
+                }
                 displayResponse('screenResponse', data, !response.ok);
             } catch (err) {
-                displayResponse('screenResponse', { error: err.message }, true);
+                displayResponse('screenResponse', { 
+                    success: false,
+                    message: err.message,
+                    code: 'SCREEN_UPDATE_ERROR'
+                }, true);
+                log(`Screen update error: ${err.message}`);
             }
+        }
+
+        // Add screen sharing interval with adaptive frame rate
+        let screenSharingInterval = null;
+        let lastFrameTime = 0;
+        const minFrameInterval = 100; // Minimum time between frames (ms)
+        const maxFrameInterval = 1000; // Maximum time between frames (ms)
+        let currentFrameInterval = 500; // Start with 2 FPS
+
+        async function startScreenSharing() {
+            if (screenSharingInterval) {
+                clearInterval(screenSharingInterval);
+            }
+
+            try {
+                // Request screen capture with user gesture
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'always',
+                        displaySurface: 'monitor',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    }
+                }).catch(err => {
+                    throw new Error('Screen capture permission denied or cancelled');
+                });
+
+                // Create video element for continuous capture
+                const video = document.createElement('video');
+                video.srcObject = screenStream;
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+
+                // Update screen with adaptive frame rate
+                screenSharingInterval = setInterval(async () => {
+                    const now = Date.now();
+                    const timeSinceLastFrame = now - lastFrameTime;
+
+                    if (timeSinceLastFrame >= currentFrameInterval) {
+                        try {
+                            // Create canvas and draw current frame
+                            const canvas = document.createElement('canvas');
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(video, 0, 0);
+
+                            // Convert to JPEG with quality 0.7
+                            const imageData = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+                            const screenData = {
+                                sessionIdentifier: document.getElementById('sessionId').value,
+                                data: imageData,
+                                width: canvas.width,
+                                height: canvas.height,
+                                createdAt: new Date().toISOString()
+                            };
+
+                            const response = await fetch(`${API_BASE_URL}/api/remote/screen`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(screenData)
+                            });
+
+                            if (response.ok) {
+                                lastFrameTime = now;
+                                // Adjust frame rate based on performance
+                                if (timeSinceLastFrame < currentFrameInterval * 0.8) {
+                                    currentFrameInterval = Math.min(currentFrameInterval * 1.2, maxFrameInterval);
+                                } else if (timeSinceLastFrame > currentFrameInterval * 1.2) {
+                                    currentFrameInterval = Math.max(currentFrameInterval * 0.8, minFrameInterval);
+                                }
+                            }
+                        } catch (error) {
+                            log(`Error in screen sharing: ${error.message}`);
+                            currentFrameInterval = Math.min(currentFrameInterval * 1.5, maxFrameInterval);
+                        }
+                    }
+                }, minFrameInterval);
+
+                log('Screen sharing started');
+            } catch (error) {
+                log(`Error starting screen sharing: ${error.message}`);
+                displayResponse('screenResponse', {
+                    success: false,
+                    message: error.message,
+                    code: 'SCREEN_SHARING_ERROR'
+                }, true);
+            }
+        }
+
+        function stopScreenSharing() {
+            if (screenSharingInterval) {
+                clearInterval(screenSharingInterval);
+                screenSharingInterval = null;
+            }
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
+            currentFrameInterval = 500; // Reset frame rate
+            log('Screen sharing stopped');
         }
 
         // Add leave session function
@@ -1241,6 +1638,151 @@
                     message: `Error testing connection: ${error.message}`,
                     code: 'TEST_CONNECTION_ERROR'
                 }, true);
+            }
+        }
+
+        // WebRTC Functions
+        async function startWebRTCScreenSharing() {
+            try {
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                    throw new Error('SignalR connection not established');
+                }
+
+                // Create peer connection with optimized configuration
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ],
+                    iceCandidatePoolSize: 10,
+                    bundlePolicy: 'max-bundle',
+                    rtcpMuxPolicy: 'require',
+                    iceTransportPolicy: 'all'
+                });
+
+                // Handle ICE candidates
+                peerConnection.onicecandidate = async (event) => {
+                    if (event.candidate) {
+                        await sendWebRTCSignal('ice-candidate', JSON.stringify(event.candidate));
+                    }
+                };
+
+                // Handle connection state changes
+                peerConnection.onconnectionstatechange = () => {
+                    const state = peerConnection.connectionState;
+                    document.getElementById('iceConnectionState').textContent = state;
+                    document.getElementById('iceConnectionState').className = 
+                        state === 'connected' ? 'connected' : 'disconnected';
+                    
+                    if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+                        log(`WebRTC connection ${state}, attempting to restart...`);
+                        stopWebRTCScreenSharing();
+                        setTimeout(() => startWebRTCScreenSharing(), 2000);
+                    }
+                };
+
+                peerConnection.onsignalingstatechange = () => {
+                    const state = peerConnection.signalingState;
+                    document.getElementById('signalingState').textContent = state;
+                    log(`WebRTC signaling state changed to: ${state}`);
+                };
+
+                // Handle ICE connection state changes
+                peerConnection.oniceconnectionstatechange = () => {
+                    const state = peerConnection.iceConnectionState;
+                    log(`ICE connection state changed to: ${state}`);
+                };
+
+                // Handle ICE gathering state changes
+                peerConnection.onicegatheringstatechange = () => {
+                    const state = peerConnection.iceGatheringState;
+                    log(`ICE gathering state changed to: ${state}`);
+                };
+
+                // Get screen stream with optimized settings
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'always',
+                        displaySurface: 'monitor',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    }
+                });
+
+                // Add tracks to peer connection
+                screenStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, screenStream);
+                });
+
+                // Create and send offer with optimized settings
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false,
+                    iceRestart: true
+                });
+
+                await peerConnection.setLocalDescription(offer);
+                await sendWebRTCSignal('offer', JSON.stringify(offer));
+
+                log('WebRTC screen sharing started');
+            } catch (error) {
+                log(`Error starting WebRTC screen sharing: ${error.message}`);
+                stopWebRTCScreenSharing();
+            }
+        }
+
+        async function stopWebRTCScreenSharing() {
+            try {
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => {
+                        track.stop();
+                        track.enabled = false;
+                    });
+                    screenStream = null;
+                }
+
+                if (dataChannel) {
+                    dataChannel.close();
+                    dataChannel = null;
+                }
+
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+
+                document.getElementById('iceConnectionState').textContent = 'disconnected';
+                document.getElementById('signalingState').textContent = 'closed';
+                document.getElementById('dataChannelState').textContent = 'closed';
+                document.getElementById('webrtcScreen').innerHTML = '';
+
+                log('WebRTC screen sharing stopped');
+            } catch (error) {
+                log(`Error stopping WebRTC screen sharing: ${error.message}`);
+            }
+        }
+
+        async function sendWebRTCSignal(signalType, signalData) {
+            try {
+                const sessionId = document.getElementById('sessionId').value;
+                if (!sessionId) {
+                    throw new Error('No session ID available');
+                }
+
+                // Format the signal as type:data
+                const signal = `${signalType}:${signalData}`;
+
+                // Send through SignalR
+                if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                    await connection.invoke("SendWebRTCSignal", sessionId, signal);
+                    log(`WebRTC ${signalType} signal sent successfully`);
+                } else {
+                    throw new Error('SignalR connection not available');
+                }
+            } catch (error) {
+                log(`Error sending WebRTC signal: ${error.message}`);
+                throw error;
             }
         }
     </script>
