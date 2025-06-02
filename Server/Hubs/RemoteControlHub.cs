@@ -313,5 +313,129 @@ namespace Server.Hubs
                 Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
             }
         }
+
+        public async Task AcceptFileTransfer(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer acceptance attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to accept transfer {transferId}");
+                    return;
+                }
+
+                transfer.Status = "transferring";
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"File transfer {transferId} accepted by user {userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error accepting file transfer {transferId}");
+            }
+        }
+
+        public async Task RejectFileTransfer(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer rejection attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to reject transfer {transferId}");
+                    return;
+                }
+
+                transfer.Status = "rejected";
+                transfer.ErrorMessage = "Transfer rejected by receiver";
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"File transfer {transferId} rejected by user {userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error rejecting file transfer {transferId}");
+            }
+        }
+
+        public async Task FileTransferCompleted(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer completion attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.SenderUserId.ToString() != userId && transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to complete transfer {transferId}");
+                    return;
+                }
+                // Notify both parties about completion
+                if (transfer.Session.HostConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.HostConnectionId)
+                        .SendAsync("FileTransferCompleted", transferId);
+                    _logger.LogInformation($"FileTransferCompleted event sent to host connection: {transfer.Session.HostConnectionId}");
+                }
+
+                if (transfer.Session.ClientConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.ClientConnectionId)
+                        .SendAsync("FileTransferCompleted", transferId);
+                    _logger.LogInformation($"FileTransferCompleted event sent to client connection: {transfer.Session.ClientConnectionId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error handling file transfer completion {transferId}");
+            }
+        }
     }
 }

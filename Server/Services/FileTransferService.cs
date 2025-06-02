@@ -26,6 +26,8 @@ namespace Server.Services
             Directory.CreateDirectory(_tempDirectory);
         }
 
+        public string GetTempDirectory() => _tempDirectory;
+
         public async Task<FileTransfer> InitiateFileTransfer(
             int sessionId,
             Guid senderUserId,
@@ -169,16 +171,42 @@ namespace Server.Services
                     .Include(s => s.ClientUser)
                     .FirstOrDefaultAsync(s => s.Id == transfer.SessionId);
 
+                _logger.LogInformation($"Sending FileTransferCompleted event for transfer {transferId} to host connection: {session?.HostConnectionId}");
                 if (session?.HostConnectionId != null)
                 {
-                    await _hubContext.Clients.Client(session.HostConnectionId)
-                        .SendAsync("FileTransferCompleted", transferId);
+                    try
+                    {
+                        await _hubContext.Clients.Client(session.HostConnectionId)
+                            .SendAsync("FileTransferCompleted", transferId);
+                        _logger.LogInformation($"FileTransferCompleted event sent to host connection: {session.HostConnectionId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to send FileTransferCompleted event to host connection: {session.HostConnectionId}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"Host connection ID is null for transfer {transferId}");
                 }
 
+                _logger.LogInformation($"Sending FileTransferCompleted event for transfer {transferId} to client connection: {session?.ClientConnectionId}");
                 if (session?.ClientConnectionId != null)
                 {
-                    await _hubContext.Clients.Client(session.ClientConnectionId)
-                        .SendAsync("FileTransferCompleted", transferId);
+                    try
+                    {
+                        await _hubContext.Clients.Client(session.ClientConnectionId)
+                            .SendAsync("FileTransferCompleted", transferId);
+                        _logger.LogInformation($"FileTransferCompleted event sent to client connection: {session.ClientConnectionId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to send FileTransferCompleted event to client connection: {session.ClientConnectionId}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"Client connection ID is null for transfer {transferId}");
                 }
             }
             catch (Exception ex)
@@ -188,21 +216,29 @@ namespace Server.Services
                 transfer.ErrorMessage = ex.Message;
                 await _context.SaveChangesAsync();
             }
-            finally
+        }
+
+        public async Task CleanupFile(int transferId)
+        {
+            var transfer = await _context.FileTransfers.FindAsync(transferId);
+            if (transfer == null)
             {
-                // Clean up temp file
-                try
+                _logger.LogError($"Transfer {transferId} not found for cleanup");
+                return;
+            }
+
+            var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
+            try
+            {
+                if (File.Exists(tempFilePath))
                 {
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                        _logger.LogInformation($"Temporary file deleted: {tempFilePath}");
-                    }
+                    File.Delete(tempFilePath);
+                    _logger.LogInformation($"Temporary file deleted: {tempFilePath}");
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Error deleting temporary file: {tempFilePath}");
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting temporary file: {tempFilePath}");
             }
         }
     }

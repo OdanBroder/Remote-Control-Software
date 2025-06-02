@@ -113,5 +113,45 @@ namespace Server.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        [HttpGet("download/{transferId}")]
+        public async Task<IActionResult> DownloadFile(int transferId)
+        {
+            try
+            {
+                var transfer = await _context.FileTransfers.FindAsync(transferId);
+                if (transfer == null)
+                {
+                    return NotFound(new { success = false, message = "File transfer not found" });
+                }
+
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                    ?? throw new UnauthorizedAccessException("User ID claim not found");
+                var userId = Guid.Parse(userIdClaim);
+
+                if (userId != transfer.ReceiverUserId)
+                {
+                    return Forbid();
+                }
+
+                var tempFilePath = Path.Combine(_fileTransferService.GetTempDirectory(), $"{transferId}_{transfer.FileName}");
+                if (!System.IO.File.Exists(tempFilePath))
+                {
+                    return NotFound(new { success = false, message = "File not found" });
+                }
+
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(tempFilePath);
+                
+                // Clean up the file after reading it
+                await _fileTransferService.CleanupFile(transferId);
+                
+                return File(fileBytes, "application/octet-stream", transfer.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error downloading file for transfer {transferId}");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 } 

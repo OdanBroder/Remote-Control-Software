@@ -538,7 +538,78 @@
                     updateConnectionStatus(true);
                     document.getElementById('connectionState').textContent = 'Connected';
                     document.getElementById('connectionId').textContent = connectionId;
+
+                    // Register FileTransferCompleted handler after connection is established
+                    log(`[DEBUG] Registering FileTransferCompleted event handler`);
+                    connection.on("FileTransferCompleted", async (transferId) => {
+                        log(`[DEBUG] FileTransferCompleted event received for transfer ID: ${transferId}`);
+                        log(`[DEBUG] Current transfer ID: ${currentTransferId}`);
+                        log(`[DEBUG] Connection state: ${connection.state}`);
+                        log(`[DEBUG] Connection ID: ${connection.connectionId}`);
+                        log(`[DEBUG] Event handler timestamp: ${new Date().toISOString()}`);
+                        
+                        // Check if this client is the sender or receiver
+                        const isSender = currentTransferId === transferId;
+                        log(`[DEBUG] Client role: ${isSender ? 'Sender' : 'Receiver'}`);
+                        
+                        if (isSender) {
+                            // Sender just needs to clean up
+                            log(`[DEBUG] Sender: Cleaning up transfer ${transferId}`);
+                            displayResponse('fileTransferStatus', {
+                                success: true,
+                                message: 'File transfer completed successfully',
+                                code: 'TRANSFER_COMPLETED'
+                            });
+                            cancelFileTransfer();
+                        } else {
+                            // Receiver needs to download the file
+                            try {
+                                log(`[DEBUG] Receiver: Starting file download for transfer ID: ${transferId}`);
+                                const response = await fetch(`${API_BASE_URL}/api/filetransfer/download/${transferId}`, {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`
+                                    }
+                                });
+                                
+                                if (!response.ok) {
+                                    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+                                }
+                                
+                                log(`[DEBUG] File download successful, creating download link`);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                // Get filename from Content-Disposition header
+                                const contentDisposition = response.headers.get('Content-Disposition');
+                                const filename = contentDisposition
+                                    ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+                                    : 'downloaded_file';
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                
+                                log(`[DEBUG] File download completed for: ${filename}`);
+                                displayResponse('fileTransferStatus', {
+                                    success: true,
+                                    message: 'File transfer completed and downloaded',
+                                    code: 'TRANSFER_COMPLETED'
+                                });
+                            } catch (error) {
+                                log(`[ERROR] Error downloading file: ${error.message}`);
+                                displayResponse('fileTransferStatus', {
+                                    success: false,
+                                    message: `Error downloading file: ${error.message}`,
+                                    code: 'DOWNLOAD_ERROR'
+                                }, true);
+                            }
+                            cancelFileTransfer();
+                        }
+                    });
                 });
+
                 connection.on("PeerConnected", (connectionId) => {
                     log(`[DEBUG] Peer connected: ${connectionId}`);
                 });
@@ -1935,17 +2006,46 @@
                     throw new Error('Failed to complete file transfer');
                 }
 
+                // Notify other clients through SignalR hub
+                try {
+                    log(`[DEBUG] Invoking FileTransferCompleted hub method for transfer ID: ${currentTransferId}`);
+                    await connection.invoke("FileTransferCompleted", currentTransferId);
+                    log(`[DEBUG] FileTransferCompleted hub method invoked successfully`);
+                } catch (error) {
+                    log(`[ERROR] Failed to invoke FileTransferCompleted hub method: ${error.message}`);
+                }
+
+                // Don't reset state here - wait for FileTransferCompleted event
                 displayResponse('fileTransferStatus', {
                     success: true,
-                    message: 'File transfer completed successfully',
+                    message: 'File transfer completed, waiting for download...',
                     code: 'TRANSFER_COMPLETED'
                 });
 
-                // Reset state
-                currentFile = null;
-                currentTransferId = null;
-                document.getElementById('fileInput').value = '';
-                document.getElementById('fileTransferProgress').style.display = 'none';
+                // Wait for FileTransferCompleted event with a timeout
+                const waitForCompletion = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout waiting for file transfer completion'));
+                    }, 30000); // 30 second timeout
+
+                    const handler = (transferId) => {
+                        if (transferId === currentTransferId) {
+                            clearTimeout(timeout);
+                            connection.off("FileTransferCompleted", handler);
+                            resolve();
+                        }
+                    };
+
+                    connection.on("FileTransferCompleted", handler);
+                });
+
+                try {
+                    await waitForCompletion;
+                    log(`[DEBUG] File transfer completion confirmed by SignalR`);
+                } catch (error) {
+                    log(`[ERROR] Error waiting for file transfer completion: ${error.message}`);
+                    throw error;
+                }
             } catch (error) {
                 displayResponse('fileTransferStatus', {
                     success: false,
@@ -1972,28 +2072,51 @@
         }
 
         // Add SignalR handlers for file transfer
-        connection.on("FileTransferRequested", (transferId, fileName, fileSize) => {
+        connection.on("FileTransferRequested", async (transferId, fileName, fileSize) => {
             const accept = confirm(`File transfer requested: ${fileName} (${formatFileSize(fileSize)})\nDo you want to accept?`);
             if (accept) {
-                // Handle file transfer acceptance
-                log(`Accepting file transfer: ${fileName}`);
+                try {
+                    // Show progress bar
+                    document.getElementById('fileTransferProgress').style.display = 'block';
+                    currentTransferId = transferId;
+                    
+                    // Notify server that we accept the transfer
+                    await connection.invoke("AcceptFileTransfer", transferId);
+                    log(`Accepting file transfer: ${fileName}`);
+                    
+                    displayResponse('fileTransferStatus', {
+                        success: true,
+                        message: `Receiving file: ${fileName}`,
+                        code: 'TRANSFER_STARTED'
+                    });
+                } catch (error) {
+                    log(`Error accepting file transfer: ${error.message}`);
+                    displayResponse('fileTransferStatus', {
+                        success: false,
+                        message: `Failed to accept file transfer: ${error.message}`,
+                        code: 'TRANSFER_ACCEPT_ERROR'
+                    }, true);
+                }
             } else {
-                // Handle file transfer rejection
-                log(`Rejecting file transfer: ${fileName}`);
+                try {
+                    // Notify server that we reject the transfer
+                    await connection.invoke("RejectFileTransfer", transferId);
+                    log(`Rejecting file transfer: ${fileName}`);
+                } catch (error) {
+                    log(`Error rejecting file transfer: ${error.message}`);
+                }
             }
         });
 
         connection.on("FileTransferProgress", (transferId, progress) => {
-            updateFileTransferProgress(progress);
+            if (transferId === currentTransferId) {
+                updateFileTransferProgress(progress);
+            }
         });
 
-        connection.on("FileTransferCompleted", (transferId) => {
-            displayResponse('fileTransferStatus', {
-                success: true,
-                message: 'File transfer completed',
-                code: 'TRANSFER_COMPLETED'
-            });
-            cancelFileTransfer();
+        // Remove the duplicate event handler registration
+        connection.onreconnected(() => {
+            log(`[DEBUG] Connection reconnected`);
         });
     </script>
 </body>
