@@ -82,13 +82,9 @@ namespace Client.ViewModels
 
                 var response = await _apiService.RegisterAsync(request);
 
-                MessageBox.Show("Đăng ký thành công!", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Mở lại LoginView
                 var loginView = new LoginView();
                 loginView.Show();
 
-                // Đóng RegisterView hiện tại
                 Application.Current.Windows
                     .OfType<Window>()
                     .FirstOrDefault(w => w.DataContext == this)

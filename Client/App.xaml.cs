@@ -16,8 +16,12 @@ namespace Client
     {
         protected void ApplicationStart(object sender, StartupEventArgs e)
         {
-            var registerView = new RegisterView();
-            registerView.Show();
+            var screenCaptureView = new ScreenCaptureView();
+            screenCaptureView.Show();
+            //var mainView = new MainView();
+            //mainView.Show();
+            //var registerView = new RegisterView();
+            //registerView.Show();
             //var loginView = new LoginView();
             //loginView.Show();
             //loginView.IsVisibleChanged += (s, ev) =>
