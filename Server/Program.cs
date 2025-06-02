@@ -28,6 +28,7 @@ var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "RemoteControl_DB"
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "h2a";
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "yourpassword";
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "yoursecret";
+var certpasswd = Environment.GetEnvironmentVariable("CERT_PASSWORD") ?? "yourpassword";
 Console.WriteLine($"DB_HOST: {dbHost}");
 Console.WriteLine($"DB_PORT: {dbPort}");
 Console.WriteLine($"DB_NAME: {dbName}");
@@ -73,7 +74,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-                
+
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/remotecontrolhub"))
                 {
                     context.Token = accessToken;
@@ -87,7 +88,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
         builder => builder
-            .WithOrigins("https://localhost:5031", "http://localhost:5031")
+            .WithOrigins("https://localhost:5031")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
@@ -118,6 +119,21 @@ builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.WebHost.UseUrls("https://0.0.0.0:5031");
+
+// Add HTTPS configuration
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ConfigureHttpsDefaults(listenOptions =>
+    {
+        listenOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
+    });
+
+    // Configure HTTPS with our certificate
+    serverOptions.ListenAnyIP(5031, listenOptions =>
+    {
+        listenOptions.UseHttps("certs/server.pfx", password: certpasswd);
+    });
+});
 
 var app = builder.Build();
 
