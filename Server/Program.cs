@@ -91,6 +91,7 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
+            .WithExposedHeaders("Content-Disposition")
             .SetIsOriginAllowed(origin => true)); // For development only
 });
 

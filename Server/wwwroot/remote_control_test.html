@@ -233,6 +233,7 @@
                 <button onclick="document.getElementById('fileInput').click()">Select File</button>
                 <button onclick="startFileTransfer()">Start Transfer</button>
                 <button onclick="cancelFileTransfer()">Cancel Transfer</button>
+                <button id="downloadButton" onclick="downloadCompletedFile()" style="display: none;">Download File</button>
             </div>
             <div id="fileTransferProgress" class="progress-bar" style="display: none;">
                 <div class="progress-fill"></div>
@@ -562,50 +563,15 @@
                             });
                             cancelFileTransfer();
                         } else {
-                            // Receiver needs to download the file
-                            try {
-                                log(`[DEBUG] Receiver: Starting file download for transfer ID: ${transferId}`);
-                                const response = await fetch(`${API_BASE_URL}/api/filetransfer/download/${transferId}`, {
-                                    headers: {
-                                        'Authorization': `Bearer ${token}`
-                                    }
-                                });
-                                
-                                if (!response.ok) {
-                                    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-                                }
-                                
-                                log(`[DEBUG] File download successful, creating download link`);
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                // Get filename from Content-Disposition header
-                                const contentDisposition = response.headers.get('Content-Disposition');
-                                const filename = contentDisposition
-                                    ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-                                    : 'downloaded_file';
-                                a.download = filename;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                document.body.removeChild(a);
-                                
-                                log(`[DEBUG] File download completed for: ${filename}`);
-                                displayResponse('fileTransferStatus', {
-                                    success: true,
-                                    message: 'File transfer completed and downloaded',
-                                    code: 'TRANSFER_COMPLETED'
-                                });
-                            } catch (error) {
-                                log(`[ERROR] Error downloading file: ${error.message}`);
-                                displayResponse('fileTransferStatus', {
-                                    success: false,
-                                    message: `Error downloading file: ${error.message}`,
-                                    code: 'DOWNLOAD_ERROR'
-                                }, true);
-                            }
-                            cancelFileTransfer();
+                            // Receiver: Show download button
+                            log(`[DEBUG] Receiver: File transfer completed, showing download button`);
+                            currentTransferId = transferId; // Set the transfer ID for the download
+                            document.getElementById('downloadButton').style.display = 'inline-block';
+                            displayResponse('fileTransferStatus', {
+                                success: true,
+                                message: 'File transfer completed. Click the Download File button to download.',
+                                code: 'TRANSFER_COMPLETED'
+                            });
                         }
                     });
                 });
@@ -2061,6 +2027,7 @@
             currentTransferId = null;
             document.getElementById('fileInput').value = '';
             document.getElementById('fileTransferProgress').style.display = 'none';
+            document.getElementById('downloadButton').style.display = 'none';
             updateFileTransferProgress(0);
         }
 
@@ -2071,53 +2038,73 @@
             progressText.textContent = `${progress}%`;
         }
 
-        // Add SignalR handlers for file transfer
-        connection.on("FileTransferRequested", async (transferId, fileName, fileSize) => {
-            const accept = confirm(`File transfer requested: ${fileName} (${formatFileSize(fileSize)})\nDo you want to accept?`);
-            if (accept) {
-                try {
-                    // Show progress bar
-                    document.getElementById('fileTransferProgress').style.display = 'block';
-                    currentTransferId = transferId;
-                    
-                    // Notify server that we accept the transfer
-                    await connection.invoke("AcceptFileTransfer", transferId);
-                    log(`Accepting file transfer: ${fileName}`);
-                    
-                    displayResponse('fileTransferStatus', {
-                        success: true,
-                        message: `Receiving file: ${fileName}`,
-                        code: 'TRANSFER_STARTED'
-                    });
-                } catch (error) {
-                    log(`Error accepting file transfer: ${error.message}`);
-                    displayResponse('fileTransferStatus', {
-                        success: false,
-                        message: `Failed to accept file transfer: ${error.message}`,
-                        code: 'TRANSFER_ACCEPT_ERROR'
-                    }, true);
-                }
-            } else {
-                try {
-                    // Notify server that we reject the transfer
-                    await connection.invoke("RejectFileTransfer", transferId);
-                    log(`Rejecting file transfer: ${fileName}`);
-                } catch (error) {
-                    log(`Error rejecting file transfer: ${error.message}`);
-                }
+        // Add downloadCompletedFile function
+        async function downloadCompletedFile() {
+            if (!currentTransferId) {
+                log(`[ERROR] No transfer ID available for download`);
+                return;
             }
-        });
 
-        connection.on("FileTransferProgress", (transferId, progress) => {
-            if (transferId === currentTransferId) {
-                updateFileTransferProgress(progress);
+            try {
+                log(`[DEBUG] Starting file download for transfer ID: ${currentTransferId}`);
+                const response = await fetch(`${API_BASE_URL}/api/filetransfer/download/${currentTransferId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+                }
+                
+                log(`[DEBUG] File download successful, creating download link`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from Content-Disposition header
+                const contentDisposition = response.headers.get('content-disposition');
+                log(`[DEBUG] Content-Disposition header: ${contentDisposition}`);
+                let filename = 'downloaded_file';
+                
+                if (contentDisposition) {
+                    // Split by semicolon and find the filename part
+                    const parts = contentDisposition.split(';');
+                    const filenamePart = parts.find(part => part.trim().startsWith('filename='));
+                    if (filenamePart) {
+                        filename = filenamePart.split('=')[1].trim();
+                        // Remove quotes if present
+                        filename = filename.replace(/^["']|["']$/g, '');
+                        log(`[DEBUG] Extracted filename: ${filename}`);
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                log(`[DEBUG] File download completed for: ${filename}`);
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: 'File downloaded successfully',
+                    code: 'DOWNLOAD_COMPLETED'
+                });
+                
+                // Hide download button after successful download
+                document.getElementById('downloadButton').style.display = 'none';
+                cancelFileTransfer();
+            } catch (error) {
+                log(`[ERROR] Error downloading file: ${error.message}`);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error downloading file: ${error.message}`,
+                    code: 'DOWNLOAD_ERROR'
+                }, true);
             }
-        });
-
-        // Remove the duplicate event handler registration
-        connection.onreconnected(() => {
-            log(`[DEBUG] Connection reconnected`);
-        });
+        }
     </script>
 </body>
 

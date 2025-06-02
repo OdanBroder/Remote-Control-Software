@@ -134,7 +134,6 @@ namespace Server.Controllers
             _context.RemoteSessions.Add(session);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"Session {sessionId} started by user {user.Username}");
             return Ok(new { 
                 success = true,
                 message = "Session started successfully",
@@ -214,7 +213,6 @@ namespace Server.Controllers
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"User {user.Username} joined session {sessionId}");
             return Ok(new { 
                 success = true,
                 message = "Successfully joined session",
@@ -257,7 +255,6 @@ namespace Server.Controllers
                 session.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"Session {sessionId} stopped by user {user.Username}");
                 return Ok(new { Message = "Session stopped successfully", SessionId = sessionId });
             }
             catch (Exception ex)
@@ -323,7 +320,6 @@ namespace Server.Controllers
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"User {user.Username} connected to session {sessionId} with connection ID {connectionId}");
             return Ok(new { ConnectionId = connectionId });
         }
 
@@ -365,7 +361,6 @@ namespace Server.Controllers
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"User disconnected from session {sessionId}");
             return Ok(new { Message = "Successfully disconnected" });
         }
 

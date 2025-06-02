@@ -169,7 +169,6 @@ namespace Server.Controllers
                         .SendAsync("ReceiveInput", serializedAction);
 
                     Console.WriteLine($"[DEBUG] Input action sent successfully");
-                    _logger.LogInformation($"Input action processed by host {user.Username} in session {session.SessionIdentifier}");
                     return Ok(new
                     {
                         success = true,

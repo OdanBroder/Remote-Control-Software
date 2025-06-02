@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Server.Services;
 using Server.Data;
 using System.Security.Claims;
+using System.Net.Mime;
 
 namespace Server.Controllers
 {
@@ -86,8 +87,6 @@ namespace Server.Controllers
                 {
                     return BadRequest(new { success = false, message = "Empty chunk received" });
                 }
-
-                _logger.LogInformation($"Processing file chunk for transfer {transferId} at offset {offset}, chunk size: {chunk.Length} bytes");
                 
                 var success = await _fileTransferService.ProcessFileChunk(transferId, chunk, offset);
                 return Ok(new { success });
@@ -145,7 +144,11 @@ namespace Server.Controllers
                 // Clean up the file after reading it
                 await _fileTransferService.CleanupFile(transferId);
                 
-                return File(fileBytes, "application/octet-stream", transfer.FileName);
+                // Set proper Content-Disposition header with filename
+                var contentDisposition = $"attachment; filename=\"{transfer.FileName}\"";
+                Response.Headers["Content-Disposition"] = contentDisposition;
+                
+                return File(fileBytes, "application/octet-stream");
             }
             catch (Exception ex)
             {
