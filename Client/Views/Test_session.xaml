@@ -1,0 +1,18 @@
+﻿<Window x:Class="Client.Views.Test_session"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Client.Views"
+        mc:Ignorable="d"
+        Title="Test_session" Height="450" Width="800">
+    <Grid>
+        <Button Content="Start session" HorizontalAlignment="Left" Height="88" Margin="58,101,0,0" VerticalAlignment="Top" Width="153"/>
+        <Button Content="Connect" HorizontalAlignment="Left" Height="88" Margin="254,101,0,0" VerticalAlignment="Top" Width="196"/>
+        <Button Content="Disconnect" HorizontalAlignment="Left" Height="88" Margin="482,101,0,0" VerticalAlignment="Top" Width="183"/>
+        <Button Content="Get active session" HorizontalAlignment="Left" Height="82" Margin="58,217,0,0" VerticalAlignment="Top" Width="153"/>
+        <Button Content="Join session" HorizontalAlignment="Left" Height="82" Margin="254,217,0,0" VerticalAlignment="Top" Width="196"/>
+        <Button Content="Leave Session" HorizontalAlignment="Left" Height="82" Margin="482,217,0,0" VerticalAlignment="Top" Width="183"/>
+
+    </Grid>
+</Window>

@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Client.ViewModels;
 
 namespace Client.Views
 {
@@ -23,6 +24,7 @@ namespace Client.Views
         public ConnectView()
         {
             InitializeComponent();
+            this.DataContext = new ConnectViewModel();
         }
     }
 }

@@ -13,11 +13,22 @@
                 <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
             </LinearGradientBrush>
         </Grid.Background>
-
-        <TextBlock Text="Connect View"
-               FontSize="20"
-               Foreground="White"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center"/>
+        
+        <Border Width="424" Height="41"
+                Background="WhiteSmoke"
+                BorderBrush="Gray"
+                BorderThickness="2"
+                CornerRadius="15"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Padding="10" Margin="0,43,0,0">
+            <TextBlock Text="{Binding Session}"
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       FontWeight="Bold"
+                       TextAlignment="Center"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"/>
+        </Border>
     </Grid>
 </UserControl>
