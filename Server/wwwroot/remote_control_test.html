@@ -1542,40 +1542,57 @@
         }
 
         async function testHubConnection() {
-            // Check if SignalR is loaded
-            if (typeof signalR === 'undefined') {
-                log('SignalR library not loaded. Please check the script inclusion.');
-                displayResponse('sessionResponse', {
-                    success: false,
-                    message: 'SignalR library not loaded',
-                    code: 'SIGNALR_NOT_LOADED'
-                }, true);
-                return;
-            }
-
-            if (!token) {
-                log('No authentication token available. Please login first.');
-                displayResponse('sessionResponse', {
-                    success: false,
-                    message: 'No authentication token available. Please login first.',
-                    code: 'NO_TOKEN'
-                }, true);
-                return;
-            }
-
-            const sessionId = document.getElementById('sessionId').value;
-            if (!sessionId) {
-                log('No session ID available. Please start or join a session first.');
-                displayResponse('sessionResponse', {
-                    success: false,
-                    message: 'No session ID available. Please start or join a session.',
-                    code: 'NO_SESSION_ID'
-                }, true);
-                return;
-            }
-
             try {
-                // Always create a new connection for testing
+                // Check if SignalR is loaded
+                if (typeof signalR === 'undefined') {
+                    log('SignalR library not loaded. Please check the script inclusion.');
+                    displayResponse('sessionResponse', {
+                        success: false,
+                        message: 'SignalR library not loaded',
+                        code: 'SIGNALR_NOT_LOADED'
+                    }, true);
+                    return;
+                }
+
+                if (!token) {
+                    log('No authentication token available. Please login first.');
+                    displayResponse('sessionResponse', {
+                        success: false,
+                        message: 'No authentication token available. Please login first.',
+                        code: 'NO_TOKEN'
+                    }, true);
+                    return;
+                }
+
+                const sessionId = document.getElementById('sessionId').value;
+                if (!sessionId) {
+                    log('No session ID available. Please start or join a session first.');
+                    displayResponse('sessionResponse', {
+                        success: false,
+                        message: 'No session ID available. Please start or join a session.',
+                        code: 'NO_SESSION_ID'
+                    }, true);
+                    return;
+                }
+
+                // If we already have a connection, test it first
+                if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                    try {
+                        await connection.invoke("Echo", "Test connection");
+                        log('Existing connection is working');
+                        displayResponse('sessionResponse', {
+                            success: true,
+                            message: 'Connection is working',
+                            code: 'CONNECTION_OK'
+                        });
+                        return;
+                    } catch (error) {
+                        log(`Existing connection failed: ${error.message}`);
+                        // Continue to create new connection
+                    }
+                }
+
+                // Create new connection
                 log('Creating new connection...');
                 connection = new signalR.HubConnectionBuilder()
                     .withUrl(`${HUB_URL}?sessionId=${sessionId}`, {
@@ -1588,11 +1605,9 @@
                     })
                     .withAutomaticReconnect({
                         nextRetryDelayInMilliseconds: retryContext => {
-                            // First retry immediately
                             if (retryContext.previousRetryCount === 0) {
                                 return 0;
                             }
-                            // Then retry after 2, 5, 10, and 20 seconds
                             return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 20000);
                         }
                     })
@@ -1602,29 +1617,20 @@
 
                 // Add connection event handlers
                 connection.onreconnecting(error => {
-                    log(`[DEBUG] Connection lost. Reconnecting...
-                        Error: ${error}
-                        State: ${connection.state}
-                        Timestamp: ${new Date().toISOString()}`);
+                    log(`Connection lost. Reconnecting... Error: ${error}`);
                     updateConnectionStatus(false);
                     document.getElementById('connectionState').textContent = 'Reconnecting...';
                 });
 
                 connection.onreconnected(connectionId => {
-                    log(`[DEBUG] Reconnected successfully:
-                        Connection ID: ${connectionId}
-                        State: ${connection.state}
-                        Timestamp: ${new Date().toISOString()}`);
+                    log(`Reconnected successfully. Connection ID: ${connectionId}`);
                     updateConnectionStatus(true);
                     document.getElementById('connectionState').textContent = 'Connected';
                     document.getElementById('connectionId').textContent = connectionId;
                 });
 
                 connection.onclose(error => {
-                    log(`[DEBUG] Connection closed:
-                        Error: ${error}
-                        State: ${connection.state}
-                        Timestamp: ${new Date().toISOString()}`);
+                    log(`Connection closed. Error: ${error}`);
                     updateConnectionStatus(false);
                     updateSessionInfo(null);
                     document.getElementById('connectionState').textContent = 'Disconnected';
@@ -1633,7 +1639,7 @@
 
                 // Add message handlers
                 connection.on("Error", (message) => {
-                    log(`[ERROR] Received error from server: ${message}`);
+                    log(`Received error from server: ${message}`);
                     displayResponse('sessionResponse', {
                         success: false,
                         message: message,
@@ -1641,76 +1647,33 @@
                     }, true);
                 });
 
-                let connectionEstablished = false;
                 connection.on("ConnectionEstablished", (connectionId) => {
-                    log(`[DEBUG] Connection established with ID: ${connectionId}`);
-                    connectionEstablished = true;
+                    log(`Connection established with ID: ${connectionId}`);
                     updateConnectionStatus(true);
                     document.getElementById('connectionState').textContent = 'Connected';
                     document.getElementById('connectionId').textContent = connectionId;
                 });
 
-                connection.on("PeerConnected", (connectionId) => {
-                    log(`[DEBUG] Peer connected: ${connectionId}`);
-                });
-
-                connection.on("PeerDisconnected", (connectionId) => {
-                    log(`[DEBUG] Peer disconnected: ${connectionId}`);
-                });
-
-                connection.on("ReceiveInput", (serializedAction) => {
-                    log(`[DEBUG] Received input action: ${serializedAction}`);
-                });
-
-                connection.on("TestMessage", (message) => {
-                    log(`[DEBUG] Received test message:
-                        Message: ${message}
-                        Type: ${typeof message}
-                        Timestamp: ${new Date().toISOString()}`);
+                connection.on("Echo", (message) => {
+                    log(`Received echo: ${message}`);
                 });
 
                 // Start the connection
                 log('Starting connection...');
                 await connection.start();
                 log('Connection started successfully');
+
+                // Test the connection with an echo
+                await connection.invoke("Echo", "Test connection");
+                log('Echo test successful');
+
                 updateConnectionStatus(true);
                 document.getElementById('connectionState').textContent = 'Connected';
                 document.getElementById('connectionId').textContent = connection.connectionId || 'N/A';
 
-                // Wait for connection to be fully established
-                let retryCount = 0;
-                const maxRetries = 5;
-                const checkInterval = 1000; // 1 second
-
-                while (retryCount < maxRetries) {
-                    if (connectionEstablished && connection.state === signalR.HubConnectionState.Connected) {
-                        log('Connection is fully established and synchronized');
-                        break;
-                    }
-
-                    log(`Waiting for connection to be fully established... Attempt ${retryCount + 1}/${maxRetries}`);
-                    log(`Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
-                    await new Promise(resolve => setTimeout(resolve, checkInterval));
-                    retryCount++;
-                }
-
-                if (!connectionEstablished || connection.state !== signalR.HubConnectionState.Connected) {
-                    throw new Error(`Failed to establish connection after ${maxRetries} attempts. Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
-                }
-
-                // Send a test message to verify connection
-                const testAction = {
-                    type: "test",
-                    action: "test",
-                    message: "Testing connection..."
-                };
-
-                log('Sending test message...');
-                await connection.invoke("SendInputAction", sessionId, JSON.stringify(testAction));
-                log('Test message sent successfully');
                 displayResponse('sessionResponse', {
                     success: true,
-                    message: 'Test message sent successfully',
+                    message: 'Connection test successful',
                     code: 'TEST_SUCCESS'
                 });
             } catch (error) {
@@ -1730,16 +1693,66 @@
                     throw new Error('SignalR connection not established');
                 }
 
-                // Create peer connection with optimized configuration
+                const sessionId = document.getElementById('sessionId').value;
+                if (!sessionId) {
+                    throw new Error('No session ID available');
+                }
+
+                // Get the session info to determine peer
+                const response = await fetch(`${API_BASE_URL}/api/session/info/${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`Session info error response: ${errorText}`);
+                    throw new Error(`Failed to get session info: ${response.status} ${response.statusText}`);
+                }
+
+                let sessionInfo;
+                try {
+                    const responseText = await response.text();
+                    log(`Raw session info response: ${responseText}`);
+                    sessionInfo = JSON.parse(responseText);
+                } catch (parseError) {
+                    log(`Error parsing session info: ${parseError.message}`);
+                    throw new Error('Invalid session info response format');
+                }
+
+                if (!sessionInfo || !sessionInfo.data) {
+                    throw new Error('Invalid session info structure');
+                }
+
+                log(`Parsed session info: ${JSON.stringify(sessionInfo)}`);
+
+                // Determine if we are host or client
+                const isHost = sessionInfo.data.hostConnectionId === connection.connectionId;
+                const peerConnectionId = isHost ? sessionInfo.data.clientConnectionId : sessionInfo.data.hostConnectionId;
+
+                if (!peerConnectionId) {
+                    throw new Error('Peer not connected');
+                }
+
+                log(`Starting WebRTC with peer: ${peerConnectionId} (${isHost ? 'as host' : 'as client'})`);
+
+                // Generate key pair for this session
+                const keyPair = await generateKeyPair();
+                const publicKey = await exportPublicKey(keyPair);
+                const privateKey = await exportPrivateKey(keyPair);
+
+                // Send public key to peer
+                await connection.invoke("ExchangePublicKey", sessionId, peerConnectionId, publicKey);
+                log('Public key exchanged');
+
+                // Create peer connection
                 peerConnection = new RTCPeerConnection({
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
                         { urls: 'stun:stun1.l.google.com:19302' }
-                    ],
-                    iceCandidatePoolSize: 10,
-                    bundlePolicy: 'max-bundle',
-                    rtcpMuxPolicy: 'require',
-                    iceTransportPolicy: 'all'
+                    ]
                 });
 
                 // Handle ICE candidates
@@ -1749,39 +1762,7 @@
                     }
                 };
 
-                // Handle connection state changes
-                peerConnection.onconnectionstatechange = () => {
-                    const state = peerConnection.connectionState;
-                    document.getElementById('iceConnectionState').textContent = state;
-                    document.getElementById('iceConnectionState').className = 
-                        state === 'connected' ? 'connected' : 'disconnected';
-                    
-                    if (state === 'failed' || state === 'disconnected' || state === 'closed') {
-                        log(`WebRTC connection ${state}, attempting to restart...`);
-                        stopWebRTCScreenSharing();
-                        setTimeout(() => startWebRTCScreenSharing(), 2000);
-                    }
-                };
-
-                peerConnection.onsignalingstatechange = () => {
-                    const state = peerConnection.signalingState;
-                    document.getElementById('signalingState').textContent = state;
-                    log(`WebRTC signaling state changed to: ${state}`);
-                };
-
-                // Handle ICE connection state changes
-                peerConnection.oniceconnectionstatechange = () => {
-                    const state = peerConnection.iceConnectionState;
-                    log(`ICE connection state changed to: ${state}`);
-                };
-
-                // Handle ICE gathering state changes
-                peerConnection.onicegatheringstatechange = () => {
-                    const state = peerConnection.iceGatheringState;
-                    log(`ICE gathering state changed to: ${state}`);
-                };
-
-                // Get screen stream with optimized settings
+                // Get screen stream
                 screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         cursor: 'always',
@@ -1797,17 +1778,20 @@
                     peerConnection.addTrack(track, screenStream);
                 });
 
-                // Create and send offer with optimized settings
+                // Create and send offer
                 const offer = await peerConnection.createOffer({
                     offerToReceiveVideo: true,
-                    offerToReceiveAudio: false,
-                    iceRestart: true
+                    offerToReceiveAudio: false
                 });
 
                 await peerConnection.setLocalDescription(offer);
                 await sendWebRTCSignal('offer', JSON.stringify(offer));
+                log('WebRTC offer sent');
 
-                log('WebRTC screen sharing started');
+                // Store private key for later use
+                window.currentPrivateKey = privateKey;
+
+                log('WebRTC screen sharing started with encryption');
             } catch (error) {
                 log(`Error starting WebRTC screen sharing: ${error.message}`);
                 stopWebRTCScreenSharing();
@@ -2103,6 +2087,290 @@
                     message: `Error downloading file: ${error.message}`,
                     code: 'DOWNLOAD_ERROR'
                 }, true);
+            }
+        }
+
+        // Add cryptographic functions
+        async function generateKeyPair() {
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: "ECDH",
+                    namedCurve: "P-256"
+                },
+                true,
+                ["deriveKey", "deriveBits"]
+            );
+            return keyPair;
+        }
+
+        async function exportPublicKey(keyPair) {
+            const exported = await window.crypto.subtle.exportKey(
+                "spki",
+                keyPair.publicKey
+            );
+            return btoa(String.fromCharCode(...new Uint8Array(exported)));
+        }
+
+        async function exportPrivateKey(keyPair) {
+            const exported = await window.crypto.subtle.exportKey(
+                "pkcs8",
+                keyPair.privateKey
+            );
+            return btoa(String.fromCharCode(...new Uint8Array(exported)));
+        }
+
+        async function importPublicKey(publicKeyStr) {
+            const binary = Uint8Array.from(atob(publicKeyStr), c => c.charCodeAt(0));
+            return await window.crypto.subtle.importKey(
+                "spki",
+                binary,
+                {
+                    name: "ECDH",
+                    namedCurve: "P-256"
+                },
+                true,
+                []
+            );
+        }
+
+        async function deriveSharedSecret(privateKey, peerPublicKey) {
+            const sharedSecret = await window.crypto.subtle.deriveBits(
+                {
+                    name: "ECDH",
+                    public: peerPublicKey
+                },
+                privateKey,
+                256
+            );
+            return sharedSecret;
+        }
+
+        async function deriveAESKey(sharedSecret) {
+            return await window.crypto.subtle.importKey(
+                "raw",
+                sharedSecret,
+                { name: "AES-GCM" },
+                false,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function encryptData(key, data) {
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await window.crypto.subtle.encrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv,
+                    tagLength: 128
+                },
+                key,
+                data
+            );
+            return {
+                encrypted: new Uint8Array(encrypted),
+                iv: iv
+            };
+        }
+
+        async function decryptData(key, encryptedData, iv) {
+            return await window.crypto.subtle.decrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv,
+                    tagLength: 128
+                },
+                key,
+                encryptedData
+            );
+        }
+
+        // Update WebRTC screen sharing with encryption
+        async function startWebRTCScreenSharing() {
+            try {
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                    throw new Error('SignalR connection not established');
+                }
+
+                const sessionId = document.getElementById('sessionId').value;
+                if (!sessionId) {
+                    throw new Error('No session ID available');
+                }
+
+                // Get the session info to determine peer
+                const response = await fetch(`${API_BASE_URL}/api/session/info/${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`Session info error response: ${errorText}`);
+                    throw new Error(`Failed to get session info: ${response.status} ${response.statusText}`);
+                }
+
+                let sessionInfo;
+                try {
+                    const responseText = await response.text();
+                    log(`Raw session info response: ${responseText}`);
+                    sessionInfo = JSON.parse(responseText);
+                } catch (parseError) {
+                    log(`Error parsing session info: ${parseError.message}`);
+                    throw new Error('Invalid session info response format');
+                }
+
+                if (!sessionInfo || !sessionInfo.data) {
+                    throw new Error('Invalid session info structure');
+                }
+
+                log(`Parsed session info: ${JSON.stringify(sessionInfo)}`);
+
+                // Determine if we are host or client
+                const isHost = sessionInfo.data.hostConnectionId === connection.connectionId;
+                const peerConnectionId = isHost ? sessionInfo.data.clientConnectionId : sessionInfo.data.hostConnectionId;
+
+                if (!peerConnectionId) {
+                    throw new Error('Peer not connected');
+                }
+
+                log(`Starting WebRTC with peer: ${peerConnectionId} (${isHost ? 'as host' : 'as client'})`);
+
+                // Generate key pair for this session
+                const keyPair = await generateKeyPair();
+                const publicKey = await exportPublicKey(keyPair);
+                const privateKey = await exportPrivateKey(keyPair);
+
+                // Send public key to peer
+                await connection.invoke("ExchangePublicKey", sessionId, peerConnectionId, publicKey);
+                log('Public key exchanged');
+
+                // Create peer connection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                // Handle ICE candidates
+                peerConnection.onicecandidate = async (event) => {
+                    if (event.candidate) {
+                        await sendWebRTCSignal('ice-candidate', JSON.stringify(event.candidate));
+                    }
+                };
+
+                // Get screen stream
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'always',
+                        displaySurface: 'monitor',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    }
+                });
+
+                // Add tracks to peer connection
+                screenStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, screenStream);
+                });
+
+                // Create and send offer
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false
+                });
+
+                await peerConnection.setLocalDescription(offer);
+                await sendWebRTCSignal('offer', JSON.stringify(offer));
+                log('WebRTC offer sent');
+
+                // Store private key for later use
+                window.currentPrivateKey = privateKey;
+
+                log('WebRTC screen sharing started with encryption');
+            } catch (error) {
+                log(`Error starting WebRTC screen sharing: ${error.message}`);
+                stopWebRTCScreenSharing();
+            }
+        }
+
+        // Update signal handling
+        connection.on("ReceivePublicKey", async (sessionId, peerId, peerPublicKey) => {
+            try {
+                const importedPublicKey = await importPublicKey(peerPublicKey);
+                const sharedSecret = await deriveSharedSecret(
+                    await window.crypto.subtle.importKey(
+                        "pkcs8",
+                        Uint8Array.from(atob(window.currentPrivateKey), c => c.charCodeAt(0)),
+                        { name: "ECDH", namedCurve: "P-256" },
+                        false,
+                        ["deriveKey", "deriveBits"]
+                    ),
+                    importedPublicKey
+                );
+                window.sessionKey = await deriveAESKey(sharedSecret);
+                await connection.invoke("CompleteKeyExchange", sessionId, peerId);
+                log('Key exchange completed successfully');
+            } catch (error) {
+                log(`Error in key exchange: ${error.message}`);
+            }
+        });
+
+        // Update data channel handling
+        peerConnection.ondatachannel = async (event) => {
+            dataChannel = event.channel;
+            dataChannel.onmessage = async (event) => {
+                try {
+                    const data = new Uint8Array(event.data);
+                    const iv = data.slice(0, 12);
+                    const encryptedData = data.slice(12);
+                    const decrypted = await decryptData(window.sessionKey, encryptedData, iv);
+                    // Handle decrypted screen data
+                    const blob = new Blob([decrypted], { type: 'image/jpeg' });
+                    const url = URL.createObjectURL(blob);
+                    const img = document.createElement('img');
+                    img.src = url;
+                    document.getElementById('webrtcScreen').innerHTML = '';
+                    document.getElementById('webrtcScreen').appendChild(img);
+                } catch (error) {
+                    log(`Error decrypting data: ${error.message}`);
+                }
+            };
+        };
+
+        // Update screen capture to use encryption
+        async function captureAndEncryptScreen() {
+            if (!screenStream || !window.sessionKey) return;
+
+            const video = document.createElement('video');
+            video.srcObject = screenStream;
+            await new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    video.play();
+                    resolve();
+                };
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.7);
+            const binary = Uint8Array.from(atob(imageData.split(',')[1]), c => c.charCodeAt(0));
+            
+            const { encrypted, iv } = await encryptData(window.sessionKey, binary);
+            
+            // Combine IV and encrypted data
+            const combined = new Uint8Array(iv.length + encrypted.length);
+            combined.set(iv);
+            combined.set(encrypted, iv.length);
+            
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(combined);
             }
         }
     </script>

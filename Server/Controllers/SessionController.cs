@@ -404,5 +404,72 @@ namespace Server.Controllers
                 data = sessions
             });
         }
+
+        [HttpGet("info/{sessionId}")]
+        public async Task<IActionResult> GetSessionInfo(string sessionId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { 
+                        success = false,
+                        message = "Authentication required",
+                        code = "AUTH_REQUIRED"
+                    });
+                }
+
+                var session = await _context.RemoteSessions
+                    .Include(s => s.HostUser)
+                    .Include(s => s.ClientUser)
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { 
+                        success = false,
+                        message = "Session not found",
+                        code = "SESSION_NOT_FOUND"
+                    });
+                }
+
+                // Validate session state
+                if (!await ValidateSessionState(session))
+                {
+                    return BadRequest(new { 
+                        success = false,
+                        message = "Session is not active or has expired",
+                        code = "SESSION_INACTIVE"
+                    });
+                }
+
+                return Ok(new 
+                { 
+                    success = true,
+                    message = "Session info retrieved successfully",
+                    code = "SESSION_INFO_RETRIEVED",
+                    data = new {
+                        sessionId = session.SessionIdentifier,
+                        status = session.Status,
+                        hostConnectionId = session.HostConnectionId,
+                        clientConnectionId = session.ClientConnectionId,
+                        hostUsername = session.HostUser?.Username,
+                        clientUsername = session.ClientUser?.Username,
+                        createdAt = session.CreatedAt,
+                        lastActivity = session.UpdatedAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting session info for session {sessionId}");
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "An error occurred while retrieving session info",
+                    code = "SERVER_ERROR"
+                });
+            }
+        }
     }
 }

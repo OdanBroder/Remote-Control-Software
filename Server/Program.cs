@@ -122,6 +122,7 @@ builder.Services.AddScoped<RemoteSessionService>();
 builder.Services.AddScoped<FileTransferService>();
 builder.Services.AddScoped<SessionQualityService>();
 builder.Services.AddScoped<SecurityService>();
+builder.Services.AddScoped<CryptoService>();
 // builder.Services.AddSingleton<ScreenCaptureService>();
 builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
