@@ -40,12 +40,13 @@ namespace Server.Services
                 ReceiverUserId = receiverUserId,
                 FileName = fileName,
                 FileSize = fileSize,
-                Status = "pending"
+                Status = "transferring"
             };
 
             _context.FileTransfers.Add(transfer);
             await _context.SaveChangesAsync();
-
+            _logger.LogInformation($"File transfer initiated: {transfer.Id} for file {fileName}");
+            
             // Notify receiver about new file transfer
             var session = await _context.RemoteSessions
                 .Include(s => s.ClientUser)
@@ -62,24 +63,39 @@ namespace Server.Services
 
         public async Task<bool> ProcessFileChunk(int transferId, byte[] chunk, int offset)
         {
-            var transfer = await _context.FileTransfers.FindAsync(transferId);
-            if (transfer == null || transfer.Status != "transferring")
-            {
-                return false;
-            }
-
-            var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
-            
             try
             {
-                using (var fileStream = new FileStream(tempFilePath, FileMode.Append))
+                var transfer = await _context.FileTransfers.FindAsync(transferId);
+                if (transfer == null)
                 {
+                    _logger.LogError($"Transfer {transferId} not found");
+                    return false;
+                }
+
+                if (transfer.Status != "transferring")
+                {
+                    _logger.LogError($"Transfer {transferId} is not in transferring state. Current status: {transfer.Status}");
+                    return false;
+                }
+
+                var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
+                _logger.LogInformation($"Processing chunk for transfer {transferId} at offset {offset}, size: {chunk.Length} bytes. Writing to: {tempFilePath}");
+
+                // Ensure the directory exists
+                Directory.CreateDirectory(_tempDirectory);
+
+                // Write the chunk to the file
+                using (var fileStream = new FileStream(tempFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
+                {
+                    fileStream.Seek(offset, SeekOrigin.Begin);
                     await fileStream.WriteAsync(chunk, 0, chunk.Length);
+                    await fileStream.FlushAsync();
                 }
 
                 // Calculate progress
                 var fileInfo = new FileInfo(tempFilePath);
                 var progress = (int)((fileInfo.Length * 100) / transfer.FileSize);
+                _logger.LogInformation($"Transfer {transferId} progress: {progress}%");
 
                 // Notify both parties about progress
                 var session = await _context.RemoteSessions
@@ -104,9 +120,13 @@ namespace Server.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error processing file chunk for transfer {transferId}");
-                transfer.Status = "failed";
-                transfer.ErrorMessage = ex.Message;
-                await _context.SaveChangesAsync();
+                var transfer = await _context.FileTransfers.FindAsync(transferId);
+                if (transfer != null)
+                {
+                    transfer.Status = "failed";
+                    transfer.ErrorMessage = ex.Message;
+                    await _context.SaveChangesAsync();
+                }
                 return false;
             }
         }
@@ -116,22 +136,32 @@ namespace Server.Services
             var transfer = await _context.FileTransfers.FindAsync(transferId);
             if (transfer == null)
             {
+                _logger.LogError($"Transfer {transferId} not found");
                 return;
             }
 
             var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
+            _logger.LogInformation($"Completing transfer {transferId}. File path: {tempFilePath}");
             
             try
             {
+                if (!File.Exists(tempFilePath))
+                {
+                    throw new FileNotFoundException($"Temporary file not found: {tempFilePath}");
+                }
+
                 // Verify file integrity
                 var fileInfo = new FileInfo(tempFilePath);
                 if (fileInfo.Length != transfer.FileSize)
                 {
-                    throw new Exception("File size mismatch");
+                    throw new Exception($"File size mismatch. Expected: {transfer.FileSize}, Actual: {fileInfo.Length}");
                 }
 
                 transfer.Status = "completed";
+                transfer.CompletedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Transfer {transferId} completed successfully");
 
                 // Notify both parties about completion
                 var session = await _context.RemoteSessions
@@ -161,9 +191,17 @@ namespace Server.Services
             finally
             {
                 // Clean up temp file
-                if (File.Exists(tempFilePath))
+                try
                 {
-                    File.Delete(tempFilePath);
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                        _logger.LogInformation($"Temporary file deleted: {tempFilePath}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error deleting temporary file: {tempFilePath}");
                 }
             }
         }

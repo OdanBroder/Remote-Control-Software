@@ -140,8 +140,8 @@ CREATE TABLE IF NOT EXISTS `FileTransfers` (
     PRIMARY KEY (`Id`),
     INDEX `IX_FileTransfers_Status` (`Status`),
     FOREIGN KEY (`SessionId`) REFERENCES `RemoteSessions` (`Id`) ON DELETE CASCADE,
-    FOREIGN KEY (`SenderUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE,
-    FOREIGN KEY (`ReceiverUserId`) REFERENCES `Users` (`InternalId`) ON DELETE CASCADE
+    FOREIGN KEY (`SenderUserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+    FOREIGN KEY (`ReceiverUserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci; 
 
 -- Create ChatMessages table

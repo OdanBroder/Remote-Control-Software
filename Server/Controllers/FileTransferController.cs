@@ -56,7 +56,6 @@ namespace Server.Controllers
                     receiverUserId,
                     fileName,
                     fileSize);
-
                 return Ok(new { success = true, data = transfer });
             }
             catch (Exception ex)
@@ -69,11 +68,27 @@ namespace Server.Controllers
         [HttpPost("chunk/{transferId}")]
         public async Task<IActionResult> ProcessFileChunk(
             int transferId,
-            [FromBody] byte[] chunk,
             [FromQuery] int offset)
         {
             try
             {
+                if (Request.ContentLength == 0)
+                {
+                    return BadRequest(new { success = false, message = "No data received" });
+                }
+
+                // Read the raw request body
+                using var ms = new MemoryStream();
+                await Request.Body.CopyToAsync(ms);
+                var chunk = ms.ToArray();
+
+                if (chunk.Length == 0)
+                {
+                    return BadRequest(new { success = false, message = "Empty chunk received" });
+                }
+
+                _logger.LogInformation($"Processing file chunk for transfer {transferId} at offset {offset}, chunk size: {chunk.Length} bytes");
+                
                 var success = await _fileTransferService.ProcessFileChunk(transferId, chunk, offset);
                 return Ok(new { success });
             }

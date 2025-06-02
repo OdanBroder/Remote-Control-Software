@@ -13,6 +13,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Mvc;
 
 // Load .env file
 DotNetEnv.Env.Load();
@@ -36,6 +39,17 @@ var connectionString = $"server={dbHost};port={dbPort};database={dbName};user={d
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// Configure request body size limits
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = int.MaxValue; // or a specific limit like 30000000 for 30MB
+});
+
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = int.MaxValue; // or a specific limit like 30000000 for 30MB
+});
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -80,7 +94,9 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(origin => true)); // For development only
 });
 
+// Configure controllers
 builder.Services.AddControllers();
+
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;

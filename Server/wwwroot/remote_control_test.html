@@ -1904,7 +1904,6 @@
                     const chunk = currentFile.slice(offset, offset + CHUNK_SIZE);
                     const chunkArrayBuffer = await chunk.arrayBuffer();
                     const chunkBytes = new Uint8Array(chunkArrayBuffer);
-
                     const chunkResponse = await fetch(`${API_BASE_URL}/api/filetransfer/chunk/${currentTransferId}?offset=${offset}`, {
                         method: 'POST',
                         headers: {
