@@ -8,6 +8,8 @@ using System.Windows.Input;
 using Client.Models;
 using Client.Services;
 using Client.Helpers;
+using Client.Views;
+using System.Linq;
 
 namespace Client.ViewModels
 {
@@ -94,8 +96,17 @@ namespace Client.ViewModels
 
                 var result = await _apiService.LoginAsync(loginRequest);
 
-                MessageBox.Show("Đăng nhập thành công!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                // TODO: Lưu token / điều hướng MainView
+                if (result.Success)
+                {
+                    TokenStorage.SaveToken(result.Data.Token);
+                    _apiService.SetAuthToken(result.Data.Token);
+                    var mainView = new MainView();
+                    mainView.Show();
+                    Application.Current.Windows
+                        .OfType<Window>()
+                        .FirstOrDefault(w => w.DataContext == this)
+                        ?.Close();
+                }
             }
             catch (HttpRequestException ex)
             {

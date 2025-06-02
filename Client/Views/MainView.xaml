@@ -26,7 +26,7 @@
                 <!-- Navigation menu -->
                 <ColumnDefinition Width="250"/>
                 <!-- Content section -->
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
             <!--Navigation menu-->

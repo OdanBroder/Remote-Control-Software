@@ -47,7 +47,7 @@ namespace Client.Services
             }
 
             var responseString = await response.Content.ReadAsStringAsync();
-
+                        
             if (!response.IsSuccessStatusCode)
             {
                 try
@@ -63,7 +63,8 @@ namespace Client.Services
                 }
             }
 
-            return JsonConvert.DeserializeObject<AuthResponse>(responseString);
+            var loginResponse = JsonConvert.DeserializeObject<AuthResponse>(responseString);
+            return loginResponse;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -102,6 +103,12 @@ namespace Client.Services
             }
 
             return JsonConvert.DeserializeObject<AuthResponse>(responseString);
+        }
+
+        public void SetAuthToken(string token)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
         }
     }
 }
