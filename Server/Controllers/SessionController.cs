@@ -299,18 +299,13 @@ namespace Server.Controllers
                 return BadRequest(new { Message = "No SignalR connection ID provided" });
             }
 
-            Console.WriteLine($"[DEBUG] Connecting user {user.Username} to session {sessionId}");
-            Console.WriteLine($"[DEBUG] Connection ID: {connectionId}");
-
             if (session.HostUserId == user.Id)
             {
                 session.HostConnectionId = connectionId;
-                Console.WriteLine($"[DEBUG] Set as host connection");
             }
             else if (session.ClientUserId == user.Id)
             {
                 session.ClientConnectionId = connectionId;
-                Console.WriteLine($"[DEBUG] Set as client connection");
             }
             else
             {
