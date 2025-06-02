@@ -26,6 +26,44 @@ namespace Client.Views
         public MainView()
         {
             InitializeComponent();
+            MainContentPresenter.Content = new ConnectView();
+        }
+
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                this.DragMove();
+            }
+        }
+
+        private void btnMinimize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void btnClose_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            var radio = sender as RadioButton;
+            string tag = radio?.Tag?.ToString();
+
+            switch (tag)
+            {
+                case "Connect":
+                    MainContentPresenter.Content = new ConnectView();
+                    break;
+                case "File":
+                    MainContentPresenter.Content = new FileTransferView();
+                    break;
+                //case "History":
+                //    MainContentPresenter.Content = new HistoryView();
+                //    break;
+            }
         }
     }
 }

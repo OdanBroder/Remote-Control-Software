@@ -6,11 +6,12 @@
         xmlns:local="clr-namespace:Client.ViewModels"
         xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         mc:Ignorable="d"
-        Title="MainViewModel" Height="700" Width="1300"
+        Title="MainViewModel"
+        Height="700" Width="1300"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        Background="Transparent"
-        AllowsTransparency="True">
+        AllowsTransparency="True"
+        Background="Transparent">
 
     <Border CornerRadius="10" BorderThickness="1">
         <Border.BorderBrush>
@@ -21,74 +22,152 @@
             </LinearGradientBrush>
         </Border.BorderBrush>
 
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                <GradientStop Color="{StaticResource secondaryBackColor1}" Offset="0"/>
+                <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
+            </LinearGradientBrush>
+        </Border.Background>
+
         <Grid>
-            <Grid.ColumnDefinitions>
-                <!-- Navigation menu -->
-                <ColumnDefinition Width="250"/>
-                <!-- Content section -->
-                <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
 
-            <!--Navigation menu-->
-            <Border CornerRadius="10, 0, 0, 10" Grid.Column="0">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0, 0" EndPoint="1, 0.7">
-                        <GradientStop Color="{StaticResource secondaryBackColor1}" Offset="0"/>
-                        <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
-                    </LinearGradientBrush>
-                </Border.Background>
+            <Border Grid.Row="0"
+                Background="{StaticResource titleNavColor}"
+                CornerRadius="10,10,0,0"
+                MouseDown="TitleBar_MouseDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="10"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel>
-                    <!--Logo-->
-                    <StackPanel Orientation="Horizontal" 
-                                Height="35" 
-                                Margin="15, 25, 0, 40">
-                        <Image Source="/Images/logo.png" Height="30" d:IsHidden="True"/>
-                        <TextBlock Text="MyApp"
-                                   Foreground="{StaticResource titleColor2}"
-                                   FontSize="20"
-                                   FontFamily="Montserrat"
-                                   FontWeight="Medium"
-                                   VerticalAlignment="Center"
-                                   Margin="10, 0, 0, 0"/>
+                    <TextBlock Text="Remote Access"
+                        Foreground="Black"
+                        FontSize="14"
+                        FontFamily="Montserrat"
+                        FontWeight="Bold"
+                        VerticalAlignment="Center"
+                        Margin="10,0,0,0"/>
+
+                    <Button x:Name="btnMinimize"
+                        Grid.Column="1"
+                        BorderThickness="0"
+                        Content="-"
+                        Foreground="White"
+                        FontSize="16"
+                        FontFamily="Montserrat"
+                        Cursor="Hand"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Click="btnMinimize_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#28AEED"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#278BEF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Width="18" Height="18"
+                        CornerRadius="9"
+                        Background="{TemplateBinding Background}">
+                                    <ContentPresenter VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <Button x:Name="btnClose"
+                        Grid.Column="2"
+                        BorderThickness="0"
+                        Content="x"
+                        Foreground="White"
+                        FontSize="12"
+                        FontFamily="Montserrat"
+                        Cursor="Hand"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Click="btnClose_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#DA34AE"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#C62DAE"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Width="18" Height="18"
+                            CornerRadius="9"
+                            Background="{TemplateBinding Background}">
+                                    <ContentPresenter VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" CornerRadius="10,0,0,10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.7">
+                            <GradientStop Color="{StaticResource secondaryBackColor1}" Offset="0"/>
+                            <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+
+                    <StackPanel>
+                        <RadioButton Style="{StaticResource menuButton}" Tag="Connect"
+                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconImage Icon="Handshake" Style="{StaticResource menuButtonIcon}"/>
+                                <TextBlock Text="Connect" Style="{StaticResource menuButtonText}"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource menuButton}" Tag="File"
+                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconImage Icon="File" Style="{StaticResource menuButtonIcon}"/>
+                                <TextBlock Text="File Transfer" Style="{StaticResource menuButtonText}"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton Style="{StaticResource menuButton}" Tag="History"
+                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconImage Icon="History" Style="{StaticResource menuButtonIcon}"/>
+                                <TextBlock Text="History" Style="{StaticResource menuButtonText}"/>
+                            </StackPanel>
+                        </RadioButton>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </Border>
 
-            <!-- Content section -->
-            <Border CornerRadius="0, 10, 10, 0" Grid.Column="1">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="1, 1" EndPoint="0, 0">
-                        <GradientStop Color="{StaticResource secondaryBackColor1}" Offset="0"/>
-                        <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-            </Border>
-
-            <!--Menu Button-->
-            <RadioButton Style="{StaticResource menuButton}"
-                         Tag="{StaticResource color1}" Margin="0,99,0,549">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconImage Icon="Handshake" Style="{StaticResource menuButtonIcon}"/>
-                    <TextBlock Text="Connect" Style="{StaticResource menuButtonText}"/>
-                </StackPanel>
-            </RadioButton>
-            <RadioButton Style="{StaticResource menuButton}"
-            Tag="{StaticResource color1}" Margin="0,149,0,499">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconImage Icon="History" Style="{StaticResource menuButtonIcon}"/>
-                    <TextBlock Text="File " Style="{StaticResource menuButtonText}"/>
-                </StackPanel>
-            </RadioButton>
-            <RadioButton Style="{StaticResource menuButton}"
-             Tag="{StaticResource color1}" Margin="0,199,0,449">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconImage Icon="History" Style="{StaticResource menuButtonIcon}"/>
-                    <TextBlock Text="History" Style="{StaticResource menuButtonText}"/>
-                </StackPanel>
-            </RadioButton>
+                <Border Grid.Column="1" CornerRadius="0,10,10,0">
+                    <ContentControl x:Name="MainContentPresenter"/>
+                </Border>
+            </Grid>
         </Grid>
-
-
     </Border>
 </Window>
