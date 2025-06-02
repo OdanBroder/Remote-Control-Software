@@ -26,6 +26,8 @@ namespace Server.Services
             Directory.CreateDirectory(_tempDirectory);
         }
 
+        public string GetTempDirectory() => _tempDirectory;
+
         public async Task<FileTransfer> InitiateFileTransfer(
             int sessionId,
             Guid senderUserId,
@@ -45,7 +47,6 @@ namespace Server.Services
 
             _context.FileTransfers.Add(transfer);
             await _context.SaveChangesAsync();
-            _logger.LogInformation($"File transfer initiated: {transfer.Id} for file {fileName}");
             
             // Notify receiver about new file transfer
             var session = await _context.RemoteSessions
@@ -79,7 +80,6 @@ namespace Server.Services
                 }
 
                 var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
-                _logger.LogInformation($"Processing chunk for transfer {transferId} at offset {offset}, size: {chunk.Length} bytes. Writing to: {tempFilePath}");
 
                 // Ensure the directory exists
                 Directory.CreateDirectory(_tempDirectory);
@@ -95,7 +95,6 @@ namespace Server.Services
                 // Calculate progress
                 var fileInfo = new FileInfo(tempFilePath);
                 var progress = (int)((fileInfo.Length * 100) / transfer.FileSize);
-                _logger.LogInformation($"Transfer {transferId} progress: {progress}%");
 
                 // Notify both parties about progress
                 var session = await _context.RemoteSessions
@@ -141,7 +140,6 @@ namespace Server.Services
             }
 
             var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
-            _logger.LogInformation($"Completing transfer {transferId}. File path: {tempFilePath}");
             
             try
             {
@@ -161,7 +159,6 @@ namespace Server.Services
                 transfer.CompletedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"Transfer {transferId} completed successfully");
 
                 // Notify both parties about completion
                 var session = await _context.RemoteSessions
@@ -171,14 +168,36 @@ namespace Server.Services
 
                 if (session?.HostConnectionId != null)
                 {
-                    await _hubContext.Clients.Client(session.HostConnectionId)
-                        .SendAsync("FileTransferCompleted", transferId);
+                    try
+                    {
+                        await _hubContext.Clients.Client(session.HostConnectionId)
+                            .SendAsync("FileTransferCompleted", transferId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to send FileTransferCompleted event to host connection: {session.HostConnectionId}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"Host connection ID is null for transfer {transferId}");
                 }
 
                 if (session?.ClientConnectionId != null)
                 {
-                    await _hubContext.Clients.Client(session.ClientConnectionId)
-                        .SendAsync("FileTransferCompleted", transferId);
+                    try
+                    {
+                        await _hubContext.Clients.Client(session.ClientConnectionId)
+                            .SendAsync("FileTransferCompleted", transferId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to send FileTransferCompleted event to client connection: {session.ClientConnectionId}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"Client connection ID is null for transfer {transferId}");
                 }
             }
             catch (Exception ex)
@@ -188,21 +207,28 @@ namespace Server.Services
                 transfer.ErrorMessage = ex.Message;
                 await _context.SaveChangesAsync();
             }
-            finally
+        }
+
+        public async Task CleanupFile(int transferId)
+        {
+            var transfer = await _context.FileTransfers.FindAsync(transferId);
+            if (transfer == null)
             {
-                // Clean up temp file
-                try
+                _logger.LogError($"Transfer {transferId} not found for cleanup");
+                return;
+            }
+
+            var tempFilePath = Path.Combine(_tempDirectory, $"{transferId}_{transfer.FileName}");
+            try
+            {
+                if (File.Exists(tempFilePath))
                 {
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                        _logger.LogInformation($"Temporary file deleted: {tempFilePath}");
-                    }
+                    File.Delete(tempFilePath);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Error deleting temporary file: {tempFilePath}");
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting temporary file: {tempFilePath}");
             }
         }
     }

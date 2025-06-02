@@ -233,6 +233,7 @@
                 <button onclick="document.getElementById('fileInput').click()">Select File</button>
                 <button onclick="startFileTransfer()">Start Transfer</button>
                 <button onclick="cancelFileTransfer()">Cancel Transfer</button>
+                <button id="downloadButton" onclick="downloadCompletedFile()" style="display: none;">Download File</button>
             </div>
             <div id="fileTransferProgress" class="progress-bar" style="display: none;">
                 <div class="progress-fill"></div>
@@ -538,7 +539,43 @@
                     updateConnectionStatus(true);
                     document.getElementById('connectionState').textContent = 'Connected';
                     document.getElementById('connectionId').textContent = connectionId;
+
+                    // Register FileTransferCompleted handler after connection is established
+                    log(`[DEBUG] Registering FileTransferCompleted event handler`);
+                    connection.on("FileTransferCompleted", async (transferId) => {
+                        log(`[DEBUG] FileTransferCompleted event received for transfer ID: ${transferId}`);
+                        log(`[DEBUG] Current transfer ID: ${currentTransferId}`);
+                        log(`[DEBUG] Connection state: ${connection.state}`);
+                        log(`[DEBUG] Connection ID: ${connection.connectionId}`);
+                        log(`[DEBUG] Event handler timestamp: ${new Date().toISOString()}`);
+                        
+                        // Check if this client is the sender or receiver
+                        const isSender = currentTransferId === transferId;
+                        log(`[DEBUG] Client role: ${isSender ? 'Sender' : 'Receiver'}`);
+                        
+                        if (isSender) {
+                            // Sender just needs to clean up
+                            log(`[DEBUG] Sender: Cleaning up transfer ${transferId}`);
+                            displayResponse('fileTransferStatus', {
+                                success: true,
+                                message: 'File transfer completed successfully',
+                                code: 'TRANSFER_COMPLETED'
+                            });
+                            cancelFileTransfer();
+                        } else {
+                            // Receiver: Show download button
+                            log(`[DEBUG] Receiver: File transfer completed, showing download button`);
+                            currentTransferId = transferId; // Set the transfer ID for the download
+                            document.getElementById('downloadButton').style.display = 'inline-block';
+                            displayResponse('fileTransferStatus', {
+                                success: true,
+                                message: 'File transfer completed. Click the Download File button to download.',
+                                code: 'TRANSFER_COMPLETED'
+                            });
+                        }
+                    });
                 });
+
                 connection.on("PeerConnected", (connectionId) => {
                     log(`[DEBUG] Peer connected: ${connectionId}`);
                 });
@@ -1935,17 +1972,46 @@
                     throw new Error('Failed to complete file transfer');
                 }
 
+                // Notify other clients through SignalR hub
+                try {
+                    log(`[DEBUG] Invoking FileTransferCompleted hub method for transfer ID: ${currentTransferId}`);
+                    await connection.invoke("FileTransferCompleted", currentTransferId);
+                    log(`[DEBUG] FileTransferCompleted hub method invoked successfully`);
+                } catch (error) {
+                    log(`[ERROR] Failed to invoke FileTransferCompleted hub method: ${error.message}`);
+                }
+
+                // Don't reset state here - wait for FileTransferCompleted event
                 displayResponse('fileTransferStatus', {
                     success: true,
-                    message: 'File transfer completed successfully',
+                    message: 'File transfer completed, waiting for download...',
                     code: 'TRANSFER_COMPLETED'
                 });
 
-                // Reset state
-                currentFile = null;
-                currentTransferId = null;
-                document.getElementById('fileInput').value = '';
-                document.getElementById('fileTransferProgress').style.display = 'none';
+                // Wait for FileTransferCompleted event with a timeout
+                const waitForCompletion = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout waiting for file transfer completion'));
+                    }, 30000); // 30 second timeout
+
+                    const handler = (transferId) => {
+                        if (transferId === currentTransferId) {
+                            clearTimeout(timeout);
+                            connection.off("FileTransferCompleted", handler);
+                            resolve();
+                        }
+                    };
+
+                    connection.on("FileTransferCompleted", handler);
+                });
+
+                try {
+                    await waitForCompletion;
+                    log(`[DEBUG] File transfer completion confirmed by SignalR`);
+                } catch (error) {
+                    log(`[ERROR] Error waiting for file transfer completion: ${error.message}`);
+                    throw error;
+                }
             } catch (error) {
                 displayResponse('fileTransferStatus', {
                     success: false,
@@ -1961,6 +2027,7 @@
             currentTransferId = null;
             document.getElementById('fileInput').value = '';
             document.getElementById('fileTransferProgress').style.display = 'none';
+            document.getElementById('downloadButton').style.display = 'none';
             updateFileTransferProgress(0);
         }
 
@@ -1971,30 +2038,73 @@
             progressText.textContent = `${progress}%`;
         }
 
-        // Add SignalR handlers for file transfer
-        connection.on("FileTransferRequested", (transferId, fileName, fileSize) => {
-            const accept = confirm(`File transfer requested: ${fileName} (${formatFileSize(fileSize)})\nDo you want to accept?`);
-            if (accept) {
-                // Handle file transfer acceptance
-                log(`Accepting file transfer: ${fileName}`);
-            } else {
-                // Handle file transfer rejection
-                log(`Rejecting file transfer: ${fileName}`);
+        // Add downloadCompletedFile function
+        async function downloadCompletedFile() {
+            if (!currentTransferId) {
+                log(`[ERROR] No transfer ID available for download`);
+                return;
             }
-        });
 
-        connection.on("FileTransferProgress", (transferId, progress) => {
-            updateFileTransferProgress(progress);
-        });
-
-        connection.on("FileTransferCompleted", (transferId) => {
-            displayResponse('fileTransferStatus', {
-                success: true,
-                message: 'File transfer completed',
-                code: 'TRANSFER_COMPLETED'
-            });
-            cancelFileTransfer();
-        });
+            try {
+                log(`[DEBUG] Starting file download for transfer ID: ${currentTransferId}`);
+                const response = await fetch(`${API_BASE_URL}/api/filetransfer/download/${currentTransferId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+                }
+                
+                log(`[DEBUG] File download successful, creating download link`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from Content-Disposition header
+                const contentDisposition = response.headers.get('content-disposition');
+                log(`[DEBUG] Content-Disposition header: ${contentDisposition}`);
+                let filename = 'downloaded_file';
+                
+                if (contentDisposition) {
+                    // Split by semicolon and find the filename part
+                    const parts = contentDisposition.split(';');
+                    const filenamePart = parts.find(part => part.trim().startsWith('filename='));
+                    if (filenamePart) {
+                        filename = filenamePart.split('=')[1].trim();
+                        // Remove quotes if present
+                        filename = filename.replace(/^["']|["']$/g, '');
+                        log(`[DEBUG] Extracted filename: ${filename}`);
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                log(`[DEBUG] File download completed for: ${filename}`);
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: 'File downloaded successfully',
+                    code: 'DOWNLOAD_COMPLETED'
+                });
+                
+                // Hide download button after successful download
+                document.getElementById('downloadButton').style.display = 'none';
+                cancelFileTransfer();
+            } catch (error) {
+                log(`[ERROR] Error downloading file: ${error.message}`);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error downloading file: ${error.message}`,
+                    code: 'DOWNLOAD_ERROR'
+                }, true);
+            }
+        }
     </script>
 </body>
 

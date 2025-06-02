@@ -48,15 +48,10 @@ namespace Server.Hubs
                     return;
                 }
 
-                _logger.LogInformation($"Client connecting: {Context.ConnectionId} for session: {sessionId}");
-                Console.WriteLine($"[DEBUG] Client connecting: {Context.ConnectionId} for session: {sessionId}");
-
                 // Send initial connection success message
                 await Clients.Caller.SendAsync("ConnectionEstablished", Context.ConnectionId);
 
                 await _sessionService.AddConnection(sessionId, Context.ConnectionId, Guid.Parse(userId));
-                _logger.LogInformation($"Client connected: {Context.ConnectionId} for session: {sessionId}");
-                Console.WriteLine($"[DEBUG] Client connected: {Context.ConnectionId} for session: {sessionId}");
 
                 // Notify other party about connection
                 var session = await _sessionService.GetSession(sessionId);
@@ -78,8 +73,6 @@ namespace Server.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OnConnectedAsync");
-                Console.WriteLine($"[ERROR] Connection error: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
                 await Clients.Caller.SendAsync("Error", "Connection failed: " + ex.Message);
                 Context.Abort();
             }
@@ -108,16 +101,12 @@ namespace Server.Hubs
                     }
 
                     await _sessionService.RemoveConnection(sessionId, Context.ConnectionId);
-                    _logger.LogInformation($"Client disconnected: {Context.ConnectionId} from session: {sessionId}");
-                    Console.WriteLine($"[DEBUG] Client disconnected: {Context.ConnectionId} from session: {sessionId}");
                 }
                 await base.OnDisconnectedAsync(exception);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OnDisconnectedAsync");
-                Console.WriteLine($"[ERROR] Disconnection error: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -181,23 +170,13 @@ namespace Server.Hubs
                 _context.InputActions.Add(inputAction);
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"[DEBUG] Sending input action to client {session.ClientConnectionId}:");
-                Console.WriteLine($"[DEBUG] Session ID: {sessionId}");
-                Console.WriteLine($"[DEBUG] From Connection ID: {Context.ConnectionId}");
-                Console.WriteLine($"[DEBUG] Action: {action}");
-                Console.WriteLine($"[DEBUG] Host Username: {user.Username}");
-
                 await Clients.Client(session.ClientConnectionId).SendAsync("ReceiveInput", action);
-                
-                Console.WriteLine($"[SUCCESS] Input action sent successfully to client {session.ClientConnectionId}");
-                _logger.LogInformation($"Input action processed by host {user.Username} in session {sessionId}");
-                
+                                
                 return new { success = true, message = "Input action sent successfully", code = "INPUT_SENT" };
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to send input action: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+
                 _logger.LogError(ex, $"Error sending input action for session: {sessionId}");
                 return new { success = false, message = "Failed to send input action: " + ex.Message, code = "INPUT_ERROR" };
             }
@@ -215,7 +194,6 @@ namespace Server.Hubs
                 }
 
                 _logger.LogError($"Input error reported by user {userId}: {errorData}");
-                Console.WriteLine($"[ERROR] Input error reported: {errorData}");
                 
                 // Save error to database
                 var errorLog = new InputError
@@ -231,7 +209,6 @@ namespace Server.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing input error report");
-                Console.WriteLine($"[ERROR] Failed to process input error report: {ex.Message}");
             }
         }
 
@@ -252,10 +229,6 @@ namespace Server.Hubs
                     return;
                 }
 
-                // Log the signal being forwarded
-                _logger.LogInformation($"Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
-                Console.WriteLine($"[DEBUG] Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
-
                 // Forward the signal to the target connection
                 await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCSignal", new
                 {
@@ -263,15 +236,10 @@ namespace Server.Hubs
                     signalData = signal.Split(':')[1],
                     fromConnectionId = Context.ConnectionId
                 });
-
-                _logger.LogInformation($"WebRTC signal forwarded successfully");
-                Console.WriteLine($"[DEBUG] WebRTC signal forwarded successfully");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error forwarding WebRTC signal for session: {sessionId}");
-                Console.WriteLine($"[ERROR] Failed to forward WebRTC signal: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -292,25 +260,136 @@ namespace Server.Hubs
                     return;
                 }
 
-                // Log the state update
-                _logger.LogInformation($"Forwarding WebRTC state from {Context.ConnectionId} to {targetConnectionId}");
-                Console.WriteLine($"[DEBUG] Forwarding WebRTC state from {Context.ConnectionId} to {targetConnectionId}");
-
                 // Forward the state to the target connection
                 await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCState", new
                 {
                     state = state,
                     fromConnectionId = Context.ConnectionId
                 });
-
-                _logger.LogInformation($"WebRTC state forwarded successfully");
-                Console.WriteLine($"[DEBUG] WebRTC state forwarded successfully");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error forwarding WebRTC state for session: {sessionId}");
-                Console.WriteLine($"[ERROR] Failed to forward WebRTC state: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        public async Task AcceptFileTransfer(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer acceptance attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to accept transfer {transferId}");
+                    return;
+                }
+
+                transfer.Status = "transferring";
+                await _context.SaveChangesAsync();
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error accepting file transfer {transferId}");
+            }
+        }
+
+        public async Task RejectFileTransfer(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer rejection attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to reject transfer {transferId}");
+                    return;
+                }
+
+                transfer.Status = "rejected";
+                transfer.ErrorMessage = "Transfer rejected by receiver";
+                await _context.SaveChangesAsync();
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error rejecting file transfer {transferId}");
+            }
+        }
+
+        public async Task FileTransferCompleted(int transferId)
+        {
+            try
+            {
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("File transfer completion attempt without user authentication");
+                    return;
+                }
+
+                var transfer = await _context.FileTransfers
+                    .Include(t => t.Session)
+                    .FirstOrDefaultAsync(t => t.Id == transferId);
+
+                if (transfer == null)
+                {
+                    _logger.LogWarning($"File transfer {transferId} not found");
+                    return;
+                }
+
+                if (transfer.SenderUserId.ToString() != userId && transfer.ReceiverUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized to complete transfer {transferId}");
+                    return;
+                }
+                // Notify both parties about completion
+                if (transfer.Session.HostConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.HostConnectionId)
+                        .SendAsync("FileTransferCompleted", transferId);
+                }
+
+                if (transfer.Session.ClientConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.ClientConnectionId)
+                        .SendAsync("FileTransferCompleted", transferId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error handling file transfer completion {transferId}");
             }
         }
     }

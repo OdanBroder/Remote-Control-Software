@@ -158,18 +158,10 @@ namespace Server.Controllers
                 try
                 {
                     var serializedAction = JsonSerializer.Serialize(request.Action);
-                    Console.WriteLine($"[DEBUG] User: {user}");
-                    Console.WriteLine($"[DEBUG] Sending input action to client:");
-                    Console.WriteLine($"[DEBUG] Session ID: {session.SessionIdentifier}");
-                    Console.WriteLine($"[DEBUG] Client Connection ID: {session.ClientConnectionId}");
-                    Console.WriteLine($"[DEBUG] Action: {serializedAction}");
-                    Console.WriteLine($"[DEBUG] Host Username: {session.HostUser?.Username}");
 
                     await _hubContext.Clients.Client(session.ClientConnectionId)
                         .SendAsync("ReceiveInput", serializedAction);
 
-                    Console.WriteLine($"[DEBUG] Input action sent successfully");
-                    _logger.LogInformation($"Input action processed by host {user.Username} in session {session.SessionIdentifier}");
                     return Ok(new
                     {
                         success = true,
@@ -179,11 +171,6 @@ namespace Server.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Failed to send input to client:");
-                    Console.WriteLine($"[ERROR] Session ID: {session.SessionIdentifier}");
-                    Console.WriteLine($"[ERROR] Client Connection ID: {session.ClientConnectionId}");
-                    Console.WriteLine($"[ERROR] Error: {ex.Message}");
-                    Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
                     _logger.LogWarning(ex, $"Failed to send input to client {session.ClientConnectionId}");
                     return StatusCode(503, new
                     {

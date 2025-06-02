@@ -7,3 +7,4 @@
 .nuget/
 packages/
 *.nupkg
+certs/
