@@ -97,6 +97,30 @@
             max-width: 100%;
             height: auto;
         }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #000;
+            font-size: 12px;
+        }
     </style>
 </head>
 
@@ -200,6 +224,22 @@
             <div id="webrtcScreen" class="screen-container"></div>
             <div id="webrtcResponse" class="response"></div>
         </div>
+
+        <!-- File Transfer Section -->
+        <div class="section">
+            <h3>File Transfer</h3>
+            <div class="file-transfer-controls">
+                <input type="file" id="fileInput" style="display: none;">
+                <button onclick="document.getElementById('fileInput').click()">Select File</button>
+                <button onclick="startFileTransfer()">Start Transfer</button>
+                <button onclick="cancelFileTransfer()">Cancel Transfer</button>
+            </div>
+            <div id="fileTransferProgress" class="progress-bar" style="display: none;">
+                <div class="progress-fill"></div>
+                <span class="progress-text">0%</span>
+            </div>
+            <div id="fileTransferStatus" class="response"></div>
+        </div>
     </div>
 
     <script>
@@ -221,6 +261,11 @@
         let peerConnection = null;
         let dataChannel = null;
         let screenStream = null;
+
+        // File Transfer Variables
+        let currentFile = null;
+        let currentTransferId = null;
+        const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
 
         // Utility Functions
         function displayResponse(elementId, data, isError = false) {
@@ -1785,6 +1830,172 @@
                 throw error;
             }
         }
+
+        // File Transfer Functions
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            currentFile = e.target.files[0];
+            if (currentFile) {
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: `Selected file: ${currentFile.name} (${formatFileSize(currentFile.size)})`,
+                    code: 'FILE_SELECTED'
+                });
+            }
+        });
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function startFileTransfer() {
+            if (!currentFile) {
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: 'Please select a file first',
+                    code: 'NO_FILE_SELECTED'
+                }, true);
+                return;
+            }
+
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: 'SignalR connection not established',
+                    code: 'NO_CONNECTION'
+                }, true);
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: 'Please enter a session ID',
+                    code: 'NO_SESSION_ID'
+                }, true);
+                return;
+            }
+
+            try {
+                // Initiate file transfer
+                const response = await fetch(`${API_BASE_URL}/api/filetransfer/initiate?sessionId=${sessionId}&fileName=${encodeURIComponent(currentFile.name)}&fileSize=${currentFile.size}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to initiate file transfer');
+                }
+
+                currentTransferId = data.data.id;
+                document.getElementById('fileTransferProgress').style.display = 'block';
+                
+                // Start sending file chunks
+                let offset = 0;
+                while (offset < currentFile.size) {
+                    const chunk = currentFile.slice(offset, offset + CHUNK_SIZE);
+                    const chunkArrayBuffer = await chunk.arrayBuffer();
+                    const chunkBytes = new Uint8Array(chunkArrayBuffer);
+
+                    const chunkResponse = await fetch(`${API_BASE_URL}/api/filetransfer/chunk/${currentTransferId}?offset=${offset}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        body: chunkBytes
+                    });
+
+                    if (!chunkResponse.ok) {
+                        throw new Error('Failed to send file chunk');
+                    }
+
+                    offset += chunkBytes.length;
+                    const progress = Math.min(100, Math.round((offset * 100) / currentFile.size));
+                    updateFileTransferProgress(progress);
+                }
+
+                // Complete file transfer
+                const completeResponse = await fetch(`${API_BASE_URL}/api/filetransfer/complete/${currentTransferId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!completeResponse.ok) {
+                    throw new Error('Failed to complete file transfer');
+                }
+
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: 'File transfer completed successfully',
+                    code: 'TRANSFER_COMPLETED'
+                });
+
+                // Reset state
+                currentFile = null;
+                currentTransferId = null;
+                document.getElementById('fileInput').value = '';
+                document.getElementById('fileTransferProgress').style.display = 'none';
+            } catch (error) {
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `File transfer failed: ${error.message}`,
+                    code: 'TRANSFER_FAILED'
+                }, true);
+                cancelFileTransfer();
+            }
+        }
+
+        function cancelFileTransfer() {
+            currentFile = null;
+            currentTransferId = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileTransferProgress').style.display = 'none';
+            updateFileTransferProgress(0);
+        }
+
+        function updateFileTransferProgress(progress) {
+            const progressFill = document.querySelector('.progress-fill');
+            const progressText = document.querySelector('.progress-text');
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+        }
+
+        // Add SignalR handlers for file transfer
+        connection.on("FileTransferRequested", (transferId, fileName, fileSize) => {
+            const accept = confirm(`File transfer requested: ${fileName} (${formatFileSize(fileSize)})\nDo you want to accept?`);
+            if (accept) {
+                // Handle file transfer acceptance
+                log(`Accepting file transfer: ${fileName}`);
+            } else {
+                // Handle file transfer rejection
+                log(`Rejecting file transfer: ${fileName}`);
+            }
+        });
+
+        connection.on("FileTransferProgress", (transferId, progress) => {
+            updateFileTransferProgress(progress);
+        });
+
+        connection.on("FileTransferCompleted", (transferId) => {
+            displayResponse('fileTransferStatus', {
+                success: true,
+                message: 'File transfer completed',
+                code: 'TRANSFER_COMPLETED'
+            });
+            cancelFileTransfer();
+        });
     </script>
 </body>
 

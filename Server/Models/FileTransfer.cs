@@ -31,7 +31,7 @@ namespace Server.Models
         public string? ErrorMessage { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? CompletedAt { get; set; }
 
         [ForeignKey("SessionId")]
         public RemoteSession Session { get; set; } = null!;
