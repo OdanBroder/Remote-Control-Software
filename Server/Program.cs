@@ -16,9 +16,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Mvc;
+using MessagePack;
 
 // Load .env file
-DotNetEnv.Env.Load();
+DotEnv.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,30 +109,43 @@ builder.Services.AddSignalR(options =>
     options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
     options.StreamBufferCapacity = 10;
     options.MaximumParallelInvocationsPerClient = 1;
-});
+    
+    // Add performance optimizations
+    options.EnableDetailedErrors = false; // Disable in production
+    options.MaximumReceiveMessageSize = 1024 * 1024; // 1 MB
+    options.StreamBufferCapacity = 100;
+    options.MaximumParallelInvocationsPerClient = 10;
+})
+.AddMessagePackProtocol();
 
 builder.Services.AddScoped<RemoteSessionService>();
 builder.Services.AddScoped<FileTransferService>();
 builder.Services.AddScoped<SessionQualityService>();
 builder.Services.AddScoped<SecurityService>();
+builder.Services.AddScoped<CryptoService>();
 // builder.Services.AddSingleton<ScreenCaptureService>();
 builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.WebHost.UseUrls("https://0.0.0.0:5031");
 
 // Add HTTPS configuration
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
+    // Configure thread pool
+    serverOptions.Limits.MaxConcurrentConnections = 100;
+    serverOptions.Limits.MaxConcurrentUpgradedConnections = 100;
+    serverOptions.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+    serverOptions.Limits.MinRequestBodyDataRate = new MinDataRate(bytesPerSecond: 100, gracePeriod: TimeSpan.FromSeconds(10));
+    serverOptions.Limits.MinResponseDataRate = new MinDataRate(bytesPerSecond: 100, gracePeriod: TimeSpan.FromSeconds(10));
+    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    serverOptions.Limits.MaxRequestBufferSize = 1024 * 1024; // 1 MB
+    serverOptions.Limits.MaxRequestLineSize = 8 * 1024; // 8 KB
+
     serverOptions.ConfigureHttpsDefaults(listenOptions =>
     {
         listenOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
-    });
-
-    // Configure HTTPS with our certificate
-    serverOptions.ListenAnyIP(5031, listenOptions =>
-    {
-        listenOptions.UseHttps("certs/server.pfx", password: certpasswd);
+        listenOptions.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2("certs/server.pfx", certpasswd);
     });
 });
 

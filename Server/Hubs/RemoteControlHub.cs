@@ -15,15 +15,18 @@ namespace Server.Hubs
         private readonly RemoteSessionService _sessionService;
         private readonly ILogger<RemoteControlHub> _logger;
         private readonly AppDbContext _context;
+        private readonly CryptoService _cryptoService;
 
         public RemoteControlHub(
             RemoteSessionService sessionService,
             ILogger<RemoteControlHub> logger,
-            AppDbContext context)
+            AppDbContext context,
+            CryptoService cryptoService)
         {
             _sessionService = sessionService;
             _logger = logger;
             _context = context;
+            _cryptoService = cryptoService;
         }
 
         public override async Task OnConnectedAsync()
@@ -48,8 +51,9 @@ namespace Server.Hubs
                     return;
                 }
 
-                // Send initial connection success message
-                await Clients.Caller.SendAsync("ConnectionEstablished", Context.ConnectionId);
+                // Generate key pair for this connection
+                var (publicKey, privateKey) = _cryptoService.GenerateKeyPair();
+                await Clients.Caller.SendAsync("ReceiveKeyPair", publicKey, privateKey);
 
                 await _sessionService.AddConnection(sessionId, Context.ConnectionId, Guid.Parse(userId));
 
@@ -102,6 +106,13 @@ namespace Server.Hubs
 
                     await _sessionService.RemoveConnection(sessionId, Context.ConnectionId);
                 }
+
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    _cryptoService.ClearSessionKey(userId);
+                }
+
                 await base.OnDisconnectedAsync(exception);
             }
             catch (Exception ex)
@@ -390,6 +401,63 @@ namespace Server.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error handling file transfer completion {transferId}");
+            }
+        }
+
+        public async Task SendSignalingData(string sessionId, string peerId, string publicKey, byte[] signalingData)
+        {
+            try
+            {
+                // Encrypt the signaling data
+                var encryptedData = _cryptoService.EncryptMessage(sessionId, signalingData);
+                await Clients.User(peerId).SendAsync("ReceiveSignalingData", sessionId, Context.UserIdentifier, encryptedData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending signaling data");
+                throw;
+            }
+        }
+
+        public async Task ExchangePublicKey(string sessionId, string peerId, string publicKey)
+        {
+            try
+            {
+                await Clients.User(peerId).SendAsync("ReceivePublicKey", sessionId, Context.UserIdentifier, publicKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exchanging public key");
+                throw;
+            }
+        }
+
+        public async Task CompleteKeyExchange(string sessionId, string peerId, string privateKey, string peerPublicKey)
+        {
+            try
+            {
+                var sharedSecret = _cryptoService.DeriveSharedSecret(sessionId, privateKey, peerPublicKey);
+                await Clients.User(peerId).SendAsync("KeyExchangeComplete", sessionId, Context.UserIdentifier);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error completing key exchange");
+                throw;
+            }
+        }
+
+        public async Task<string> Echo(string message)
+        {
+            try
+            {
+                _logger.LogInformation($"Echo received: {message}");
+                await Task.Delay(1); // Make the method properly async
+                return message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in Echo method");
+                throw;
             }
         }
     }
