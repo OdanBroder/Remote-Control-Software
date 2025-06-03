@@ -22,10 +22,13 @@ namespace Client.Views
     /// </summary>
     public partial class MainView : Window
     {
+        private ContentControl _connectView;
+        private ContentControl FileTransferView; // co the xoa
         public MainView()
         {
             InitializeComponent();
             MainContentPresenter.Content = new ConnectView();
+            _connectView = new ConnectView();
         }
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -53,7 +56,7 @@ namespace Client.Views
                 switch (tag)
                 {
                     case "Connect":
-                        MainContentPresenter.Content = new ConnectView();
+                        MainContentPresenter.Content = _connectView;
                         break;
                     case "File":
                         MainContentPresenter.Content = new FileTransferView();
