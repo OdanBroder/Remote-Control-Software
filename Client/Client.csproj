@@ -72,10 +72,15 @@
     <Compile Include="Models\SessionResponse.cs" />
     <Compile Include="Models\UserAccountModel.cs" />
     <Compile Include="Models\UserModel.cs" />
-    <Compile Include="Services\ApiService.cs" />
+    <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\SessionService.cs" />
+    <Compile Include="ViewModels\ConnectViewModel.cs" />
     <Compile Include="ViewModels\JoinSessionViewModel.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\RegisterViewModel.cs" />
+    <Compile Include="Views\ConnectView.xaml.cs">
+      <DependentUpon>ConnectView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\LoginView.xaml.cs">
       <DependentUpon>LoginView.xaml</DependentUpon>
     </Compile>

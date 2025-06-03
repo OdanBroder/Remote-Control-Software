@@ -164,8 +164,12 @@
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="1" CornerRadius="0,10,10,0">
-                    <ContentControl x:Name="MainContentPresenter"/>
+                
+                <Border Grid.Column="1" CornerRadius="0,10,10,0" Background="White">
+                    <ContentControl x:Name="MainContentPresenter"
+                    MinHeight="200"
+                    MinWidth="400"
+                    Background="LightGray"/>
                 </Border>
             </Grid>
         </Grid>

@@ -12,7 +12,7 @@ namespace Client.ViewModels
 {
     public class JoinSessionViewModel : INotifyPropertyChanged
     {
-        private readonly ApiService _apiService = new ApiService();
+        private readonly AuthService _apiService = new AuthService();
 
         private string _sessionId;
         private string _errorMessage;

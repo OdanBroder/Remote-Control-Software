@@ -13,8 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Client.Src.Utils;
 using Client.Src.Services;
-
-
+using Client.Views;
 
 namespace Client.Views
 {
@@ -46,23 +45,30 @@ namespace Client.Views
         {
             Application.Current.Shutdown();
         }
-
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
         {
-            var radio = sender as RadioButton;
-            string tag = radio?.Tag?.ToString();
-
-            switch (tag)
+            if (sender is RadioButton radio && radio.Tag != null)
             {
-                case "Connect":
-                    MainContentPresenter.Content = new ConnectView();
-                    break;
-                case "File":
-                    MainContentPresenter.Content = new FileTransferView();
-                    break;
-                //case "History":
-                //    MainContentPresenter.Content = new HistoryView();
-                //    break;
+                string tag = radio.Tag.ToString();
+                switch (tag)
+                {
+                    case "Connect":
+                        MainContentPresenter.Content = new ConnectView();
+                        break;
+                    case "File":
+                        MainContentPresenter.Content = new FileTransferView();
+                        break;
+                    case "History":
+                        MainContentPresenter.Content = new TextBlock { Text = "HistoryView is not implemented yet." };
+                        break;
+                    default:
+                        MainContentPresenter.Content = new TextBlock { Text = $"Unknown view: {tag}" };
+                        break;
+                }
+            }
+            else
+            {
+                MainContentPresenter.Content = new TextBlock { Text = "Invalid radio button or tag." };
             }
         }
     }

@@ -15,7 +15,7 @@ namespace Client.ViewModels
 {
     public class LoginViewModel : INotifyPropertyChanged
     {
-        private readonly ApiService _apiService = new ApiService();
+        private readonly AuthService _authService = new AuthService();
 
         private string _username = "";
         private string _password = "";
@@ -94,12 +94,12 @@ namespace Client.ViewModels
                     Password = Password
                 };
 
-                var result = await _apiService.LoginAsync(loginRequest);
+                var result = await _authService.LoginAsync(loginRequest);
 
                 if (result.Success)
                 {
                     TokenStorage.SaveToken(result.Data.Token);
-                    _apiService.SetAuthToken(result.Data.Token);
+                    _authService.SetAuthToken(result.Data.Token);
                     var mainView = new MainView();
                     mainView.Show();
                     Application.Current.Windows

@@ -15,7 +15,7 @@ namespace Client.ViewModels
 {
     public class RegisterViewModel : INotifyPropertyChanged
     {
-        private readonly ApiService _apiService = new ApiService();
+        private readonly AuthService _authService = new AuthService();
 
         private string _username = string.Empty;
         private string _password = string.Empty;
@@ -80,7 +80,7 @@ namespace Client.ViewModels
                     Password = Password
                 };
 
-                var response = await _apiService.RegisterAsync(request);
+                var response = await _authService.RegisterAsync(request);
 
                 var loginView = new LoginView();
                 loginView.Show();

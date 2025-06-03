@@ -9,12 +9,12 @@ using Newtonsoft.Json;
 
 namespace Client.Services
 {
-    public class ApiService
+    public class AuthService
     {
         private readonly HttpClient _httpClient;
         private readonly string baseUrl = AppSettings.BaseApiUri + "/api";
 
-        public ApiService()
+        public AuthService()
         {
             var handler = new HttpClientHandler
             {
@@ -110,37 +110,7 @@ namespace Client.Services
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
         }
-        public async Task<SessionResponse> StartSessionAsync()
-        {
-            var token = TokenStorage.LoadToken();
-            if (string.IsNullOrEmpty(token))
-                throw new InvalidOperationException("Chưa đăng nhập");
-
-            if (_httpClient.DefaultRequestHeaders.Authorization == null)
-                SetAuthToken(token);
-
-            HttpResponseMessage response;
-            try
-            {
-                response = await _httpClient.PostAsync("/api/session/start", null);
-            }
-            catch (Exception ex)
-            {
-                Console.Write(baseUrl);
-                Console.WriteLine(ex.Message);
-                throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Lỗi khi gọi API: {responseString}");
-
-            var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
-
-            return sessionResponse;
-        }
+        
         public async Task<SessionResponse> JoinSessionAsync(string sessionId)
         {
             var token = TokenStorage.LoadToken();
