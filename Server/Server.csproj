@@ -25,6 +25,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Otp.NET" Version="1.3.0" />
     <PackageReference Include="QRCoder" Version="1.4.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.17" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
   </ItemGroup>
-
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);0618</NoWarn>
+  </PropertyGroup>
 </Project>

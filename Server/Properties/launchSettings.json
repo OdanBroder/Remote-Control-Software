@@ -9,22 +9,24 @@
     }
   },
   "profiles": {
-    "https": {
+    "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "launchUrl": "remote-control-access",
-      "applicationUrl": "https://localhost:5031",
+      "launchUrl": "remote_control_test.html",
+      "applicationUrl": "http://localhost:5031",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SERVER_PORT": "5031"
       }
     },
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
-      "launchUrl": "remote-control-access",
+      "launchUrl": "remote_control_test.html",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SERVER_PORT": "5031"
       }
     }
   }
