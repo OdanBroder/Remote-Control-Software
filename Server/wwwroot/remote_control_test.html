@@ -597,9 +597,10 @@
                             Type: ${action.type}
                             Action: ${action.action}
                             Key: ${action.key || 'N/A'}
-                            Button: ${action.button || 'N/A'}
+                            Modifiers: ${JSON.stringify(action.modifiers || [])}
                             X: ${action.x || 'N/A'}
                             Y: ${action.y || 'N/A'}
+                            Button: ${action.button || 'N/A'}
                             Full Action: ${JSON.stringify(action, null, 2)}`);
 
                         // Add a small delay to ensure proper handling
@@ -857,7 +858,7 @@
                 // Send a test message to verify connection
                 const testAction = {
                     type: "test",
-                    action: "test", 
+                    action: "test",
                     message: "Testing connection..."
                 };
 
