@@ -32,5 +32,45 @@
                 <Run Text="{Binding Session}" />
             </TextBlock>
         </Border>
+
+        <Button Content="Send Input" HorizontalAlignment="Left" Height="72" Margin="108,174,0,0" VerticalAlignment="Top" Width="99" Click="Button_Click"/>
+        <Button Content="Stop send Input" HorizontalAlignment="Left" Height="72" Margin="239,174,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_1"/>
+        <Button Content="Restart"
+        Command="{Binding ReconnectCommand}"
+        HorizontalAlignment="Left"
+        Height="72"
+        Margin="375,174,0,0"
+        VerticalAlignment="Top"
+        Width="109"/>
+        <Button Content="Join Session"
+            Command="{Binding JoinSessionCommand}"
+            HorizontalAlignment="Left" 
+            Height="72" 
+            Margin="510,174,0,0" 
+            VerticalAlignment="Top" 
+            Width="118" 
+            RenderTransformOrigin="0.847,0.556"/>
+        <TextBox FontSize="14" 
+                FontWeight="Bold"
+                TextAlignment="Center" 
+                 HorizontalAlignment="Center" 
+                 Height="26" 
+                 Margin="0,116,0,0" 
+                 TextWrapping="Wrap" 
+                 
+                 Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" 
+                 VerticalAlignment="Top" 
+                 Width="404"/>
+        <TextBlock HorizontalAlignment="Center"
+                   Foreground="#D7596D"
+                   Height="32" Margin="0,288,0,0" 
+                   TextWrapping="Wrap" 
+                   Text="{Binding ErrorMessage, UpdateSourceTrigger=PropertyChanged}"  
+                   VerticalAlignment="Top" 
+                   Width="406"
+                   />
+
+
+
     </Grid>
 </UserControl>

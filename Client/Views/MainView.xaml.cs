@@ -27,8 +27,8 @@ namespace Client.Views
         public MainView()
         {
             InitializeComponent();
-            MainContentPresenter.Content = new ConnectView();
             _connectView = new ConnectView();
+            MainContentPresenter.Content = _connectView;
         }
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Client.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,9 +20,27 @@ namespace Client.Views
     /// </summary>
     public partial class Test_session : Window
     {
+        private readonly SessionService _sessionService = new SessionService();
+        private readonly SessionService _hubService = new SessionService();
+
         public Test_session()
         {
             InitializeComponent();
+        }
+        
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

@@ -9,9 +9,9 @@
     <Grid>
         <Button Content="Start session" HorizontalAlignment="Left" Height="88" Margin="58,101,0,0" VerticalAlignment="Top" Width="153"/>
         <Button Content="Connect" HorizontalAlignment="Left" Height="88" Margin="254,101,0,0" VerticalAlignment="Top" Width="196"/>
-        <Button Content="Disconnect" HorizontalAlignment="Left" Height="88" Margin="482,101,0,0" VerticalAlignment="Top" Width="183"/>
-        <Button Content="Get active session" HorizontalAlignment="Left" Height="82" Margin="58,217,0,0" VerticalAlignment="Top" Width="153"/>
-        <Button Content="Join session" HorizontalAlignment="Left" Height="82" Margin="254,217,0,0" VerticalAlignment="Top" Width="196"/>
+        <Button Content="Send Input A" HorizontalAlignment="Left" Height="88" Margin="482,101,0,0" VerticalAlignment="Top" Width="183" Click="Button_Click"/>
+        <Button Content="Send Input B" HorizontalAlignment="Left" Height="82" Margin="58,217,0,0" VerticalAlignment="Top" Width="153" Click="Button_Click_1"/>
+        <Button Content="Start WebRTC" HorizontalAlignment="Left" Height="82" Margin="254,217,0,0" VerticalAlignment="Top" Width="196" Click="Button_Click_2"/>
         <Button Content="Leave Session" HorizontalAlignment="Left" Height="82" Margin="482,217,0,0" VerticalAlignment="Top" Width="183"/>
 
     </Grid>

@@ -12,8 +12,8 @@ namespace Client.Models
         public string Action { get; set; }
         public string Key { get; set; }
         public string Button { get; set; }
-        public int X { get; set; }
-        public int Y { get; set; }
+        public int? X { get; set; }
+        public int? Y { get; set; }
         public string[] Modifiers { get; set; }
     }
 

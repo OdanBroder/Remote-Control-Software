@@ -52,40 +52,50 @@ namespace Client.Services
             }
 
             var responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Lỗi khi gọi API: {responseString}");
-
-            Console.WriteLine($"Response: {responseString}");
             var sessionResponse = JsonConvert.DeserializeObject<StartSessionResponse>(responseString);
 
+            if (!sessionResponse.Success & sessionResponse.Code != "SESSION_EXISTS")
+                throw new HttpRequestException($"Error while starting API in SessionService: {responseString}");
+            else if(sessionResponse.Code == "SESSION_EXISTS")
+            {
+                return sessionResponse;
+            }
+            Console.WriteLine($"Response sessions: {responseString}");
+            SessionStorage.SaveSession(sessionResponse.Data.SessionId);
             return sessionResponse;
         }
 
-        public async Task<SessionResponse> LeaveSessionAsync(string sessionId)
+        public async Task<ApiResponse> LeaveSessionAsync(string sessionId)
         {
             HttpResponseMessage response;
-
+            
             try
             {
                 response = await _httpClient.PostAsync($"{baseUrl}/session/stop/{sessionId}", null);
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message, "Unable to stop session: ");
+                return null;
+            }
+            try
+            {
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                var Response = JsonConvert.DeserializeObject<ApiResponse>(responseString);
+                if(Response is null)
+                {
+                    return null;
+                }    
+                Console.WriteLine($"Response: {responseString}");
+                return Response;
+            }
+            catch (Exception ex)
+            {
                 Console.WriteLine(ex.Message);
                 throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
+                    "Unable to connect to the server or there's some error while leaving sessionId", ex);
             }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Lỗi khi gọi API: {responseString}");
-
-            Console.WriteLine($"Response: {responseString}");
-            var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
-
-            return sessionResponse;
         }
         public async Task<SessionResponse> GetActiveSessionAsync()
         {
@@ -103,12 +113,13 @@ namespace Client.Services
 
             var responseString = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Lỗi khi gọi API: {responseString}");
-
-            Console.WriteLine($"Response: {responseString}");
             var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
 
+            if (!sessionResponse.Success)
+                throw new HttpRequestException($"Error while getting SessionId in SessionService: {responseString}");
+
+            Console.WriteLine($"Response: {responseString}");
+            
             return sessionResponse;
         }
     }

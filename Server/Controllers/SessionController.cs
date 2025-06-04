@@ -145,6 +145,7 @@ namespace Server.Controllers
         [HttpPost("join/{sessionId}")]
         public async Task<IActionResult> JoinSession(string sessionId)
         {
+            Console.WriteLine("User try to join...");
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
@@ -190,7 +191,7 @@ namespace Server.Controllers
                     code = "SESSION_NOT_FOUND"
                 });
             }
-
+            Console.WriteLine("User validating...");
             if (!await ValidateSessionState(session))
             {
                 return BadRequest(new { 
@@ -212,6 +213,7 @@ namespace Server.Controllers
             session.ClientUserId = user.Id;
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            Console.WriteLine("User join successfully...");
 
             return Ok(new { 
                 success = true,

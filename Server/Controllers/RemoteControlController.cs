@@ -7,6 +7,10 @@ using Server.Services;
 using Server.Hubs;
 using System.Security.Claims;
 using System.Text.Json;
+using System;
+
+using Newtonsoft.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace Server.Controllers
 {
@@ -135,7 +139,7 @@ namespace Server.Controllers
                 var inputAction = new InputAction
                 {
                     SessionIdentifier = request.SessionIdentifier,
-                    Action = JsonSerializer.Serialize(request.Action),
+                    Action = System.Text.Json.JsonSerializer.Serialize(request.Action),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -157,8 +161,15 @@ namespace Server.Controllers
                 // Send the input action to the client
                 try
                 {
-                    var serializedAction = JsonSerializer.Serialize(request.Action);
+                    var settings = new JsonSerializerSettings
+                    {
+                        ContractResolver = new CamelCasePropertyNamesContractResolver()
+                    };
 
+                    string serializedAction = JsonConvert.SerializeObject(request.Action, settings);
+
+                    //var serializedAction = JsonSerializer.Serialize(request.Action);
+                    Console.WriteLine($"Action json: {serializedAction}");
                     await _hubContext.Clients.Client(session.ClientConnectionId)
                         .SendAsync("ReceiveInput", serializedAction);
 
@@ -292,7 +303,7 @@ namespace Server.Controllers
                 }
 
                 // Update connection data based on signal type
-                var signalDataJson = JsonSerializer.Serialize(request.SignalData);
+                var signalDataJson = System.Text.Json.JsonSerializer.Serialize(request.SignalData);
                 switch (request.SignalType.ToLower())
                 {
                     case "offer":

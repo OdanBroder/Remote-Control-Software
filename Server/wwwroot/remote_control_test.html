@@ -588,7 +588,7 @@
                     try {
                         log(`[DEBUG] Received input action: ${serializedAction}`);
                         const action = JSON.parse(serializedAction);
-                        
+                        log(`[DEBUG] Action: ${action}`);   
                         if (!action || !action.type || !action.action) {
                             throw new Error('Invalid input action format');
                         }
@@ -597,10 +597,9 @@
                             Type: ${action.type}
                             Action: ${action.action}
                             Key: ${action.key || 'N/A'}
-                            Modifiers: ${JSON.stringify(action.modifiers || [])}
+                            Button: ${action.button || 'N/A'}
                             X: ${action.x || 'N/A'}
                             Y: ${action.y || 'N/A'}
-                            Button: ${action.button || 'N/A'}
                             Full Action: ${JSON.stringify(action, null, 2)}`);
 
                         // Add a small delay to ensure proper handling
@@ -612,12 +611,28 @@
                                 }
                                 else if (action.type === "mouse") {
                                     log(`[DEBUG] Processing mouse action: ${action.action} at (${action.x}, ${action.y})`);
-                                    if (action.action === "move") {
-                                        simulateMouseMove(action.x, action.y);
-                                    } else if (action.action === "click") {
-                                        simulateMouseClick(action.x, action.y, action.button);
-                                    } else {
-                                        throw new Error(`Unsupported mouse action: ${action.action}`);
+                                    
+                                    switch (action.action) {
+                                        case "mousedown":
+                                            simulateMouseDown(action.x, action.y, action.button);
+                                            break;
+                                        case "mouseup":
+                                            simulateMouseUp(action.x, action.y, action.button);
+                                            break;
+                                        case "click":
+                                            simulateMouseClick(action.x, action.y, action.button);
+                                            break;
+                                        case "doubleclick":
+                                            simulateMouseDoubleClick(action.x, action.y, action.button);
+                                            break;
+                                        case "move":
+                                            simulateMouseMove(action.x, action.y);
+                                            break;
+                                        case "wheel":
+                                            simulateMouseWheel(action.x, action.y);
+                                            break;
+                                        default:
+                                            throw new Error(`Unsupported mouse action: ${action.action}`);
                                     }
                                 } else {
                                     throw new Error(`Unsupported input type: ${action.type}`);
@@ -842,7 +857,7 @@
                 // Send a test message to verify connection
                 const testAction = {
                     type: "test",
-                    action: "test",
+                    action: "test", 
                     message: "Testing connection..."
                 };
 
@@ -1503,6 +1518,52 @@
             document.dispatchEvent(keyUpEvent);
         }
 
+        function simulateMouseDown(x, y, button = 'left') {
+            const downEvent = new MouseEvent('mousedown', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(downEvent);
+        }
+
+        function simulateMouseUp(x, y, button = 'left') {
+            const upEvent = new MouseEvent('mouseup', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(upEvent);
+        }
+
+        function simulateMouseClick(x, y, button = 'left') {
+            simulateMouseDown(x, y, button);
+            simulateMouseUp(x, y, button);
+            
+            const clickEvent = new MouseEvent('click', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(clickEvent);
+        }
+
+        function simulateMouseDoubleClick(x, y, button = 'left') {
+            simulateMouseClick(x, y, button);
+            simulateMouseClick(x, y, button);
+            
+            const dblClickEvent = new MouseEvent('dblclick', {
+                clientX: x,
+                clientY: y,
+                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
+                bubbles: true
+            });
+            document.dispatchEvent(dblClickEvent);
+        }
+
         function simulateMouseMove(x, y) {
             const moveEvent = new MouseEvent('mousemove', {
                 clientX: x,
@@ -1512,33 +1573,13 @@
             document.dispatchEvent(moveEvent);
         }
 
-        function simulateMouseClick(x, y, button = 'left') {
-            // Mouse down
-            const downEvent = new MouseEvent('mousedown', {
+        function simulateMouseWheel(x, y) {
+            const wheelEvent = new WheelEvent('wheel', {
                 clientX: x,
                 clientY: y,
-                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
                 bubbles: true
             });
-            document.dispatchEvent(downEvent);
-
-            // Mouse up
-            const upEvent = new MouseEvent('mouseup', {
-                clientX: x,
-                clientY: y,
-                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
-                bubbles: true
-            });
-            document.dispatchEvent(upEvent);
-
-            // Click
-            const clickEvent = new MouseEvent('click', {
-                clientX: x,
-                clientY: y,
-                button: button === 'left' ? 0 : button === 'right' ? 2 : 1,
-                bubbles: true
-            });
-            document.dispatchEvent(clickEvent);
+            document.dispatchEvent(wheelEvent);
         }
 
         async function testHubConnection() {

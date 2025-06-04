@@ -104,14 +104,13 @@ namespace Client.Services
 
             return JsonConvert.DeserializeObject<AuthResponse>(responseString);
         }
-
+        
         public void SetAuthToken(string token)
         {
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
         }
-        
-        public async Task<SessionResponse> JoinSessionAsync(string sessionId)
+        public async Task<ApiResponse> JoinSessionAsync(string sessionId)
         {
             var token = TokenStorage.LoadToken();
             if (string.IsNullOrEmpty(token))
@@ -123,7 +122,7 @@ namespace Client.Services
             HttpResponseMessage response;
             try
             {
-                response = await _httpClient.PostAsync($"/api/session/join/{sessionId}", null);
+                response = await _httpClient.PostAsync($"{baseUrl}/session/join/{sessionId}", null);
             }
             catch (Exception ex)
             {
@@ -134,13 +133,17 @@ namespace Client.Services
             }
 
             var responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Lỗi khi gọi API: {responseString}");
-
-            var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
-
-            return sessionResponse;
+            var result = JsonConvert.DeserializeObject<ApiResponse>(responseString);
+            Console.WriteLine($"Results join: {responseString}");
+            if(result is null)
+            {
+                throw new HttpRequestException($"Url not found while joining");
+            }
+            else if (!result.Success)
+            {
+                throw new HttpRequestException($"Error while joining session API: {responseString}");
+            }
+            return result;
         }
     }
 }
