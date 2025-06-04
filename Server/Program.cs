@@ -191,10 +191,16 @@ if (development == "development")
 }
 else
 {
-    // Configure multiple server instances
-    var serverPorts = new[] { 5031, 5032, 5033 };
-    serverUrls = serverPorts.Select(port => $"http://localhost:{port}").ToArray();
-    builder.WebHost.UseUrls(serverUrls);
+    // In production, use ASPNETCORE_URLS environment variable
+    var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+    if (string.IsNullOrEmpty(urls))
+    {
+        // Fallback to default ports if ASPNETCORE_URLS is not set
+        var serverPorts = new[] { 5030, 5031, 5032 };
+        serverUrls = serverPorts.Select(port => $"http://+:{port}").ToArray();
+        builder.WebHost.UseUrls(serverUrls);
+    }
+    // If ASPNETCORE_URLS is set, it will be used automatically by ASP.NET Core
 }
 
 // Configure Kestrel
