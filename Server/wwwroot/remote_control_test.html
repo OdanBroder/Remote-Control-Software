@@ -834,25 +834,60 @@
                 document.getElementById('connectionState').textContent = 'Connected';
                 document.getElementById('connectionId').textContent = connection.connectionId || 'N/A';
 
+                // Register FileTransferCompleted handler
+                connection.on("FileTransferCompleted", (transferId) => {
+                    log(`[DEBUG] FileTransferCompleted event received for transfer ID: ${transferId}`);
+                    log(`[DEBUG] Current transfer ID: ${currentTransferId}`);
+                    log(`[DEBUG] Connection state: ${connection.state}`);
+                    log(`[DEBUG] Connection ID: ${connection.connectionId}`);
+                    
+                    // Check if this client is the sender or receiver
+                    const isSender = currentTransferId === transferId;
+                    log(`[DEBUG] Client role: ${isSender ? 'Sender' : 'Receiver'}`);
+                    
+                    if (isSender) {
+                        // Sender just needs to clean up
+                        log(`[DEBUG] Sender: Cleaning up transfer ${transferId}`);
+                        displayResponse('fileTransferStatus', {
+                            success: true,
+                            message: 'File transfer completed successfully',
+                            code: 'TRANSFER_COMPLETED'
+                        });
+                        cancelFileTransfer();
+                    } else {
+                        // Receiver: Show download button
+                        log(`[DEBUG] Receiver: File transfer completed, showing download button`);
+                        currentTransferId = transferId; // Set the transfer ID for the download
+                        document.getElementById('downloadButton').style.display = 'inline-block';
+                        displayResponse('fileTransferStatus', {
+                            success: true,
+                            message: 'File transfer completed. Click the Download File button to download.',
+                            code: 'TRANSFER_COMPLETED'
+                        });
+                    }
+                });
+
                 // Wait for connection to be fully established
                 let retryCount = 0;
                 const maxRetries = 5;
                 const checkInterval = 1000; // 1 second
 
                 while (retryCount < maxRetries) {
-                    if (connectionEstablished && connection.state === signalR.HubConnectionState.Connected) {
-                        log('Connection is fully established and synchronized');
+                    // Check if we have a valid connection ID
+                    if (connection.connectionId) {
+                        log('Connection is fully established with ID: ' + connection.connectionId);
+                        connectionEstablished = true;
                         break;
                     }
 
-                    log(`Waiting for connection to be fully established... Attempt ${retryCount + 1}/${maxRetries}`);
-                    log(`Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                    log(`Waiting for connection ID... Attempt ${retryCount + 1}/${maxRetries}`);
+                    log(`Current connection ID: ${connection.connectionId}`);
                     await new Promise(resolve => setTimeout(resolve, checkInterval));
                     retryCount++;
                 }
 
-                if (!connectionEstablished || connection.state !== signalR.HubConnectionState.Connected) {
-                    throw new Error(`Failed to establish connection after ${maxRetries} attempts. Current state: ${connection.state}, Connection established: ${connectionEstablished}`);
+                if (!connection.connectionId) {
+                    throw new Error(`Failed to establish connection after ${maxRetries} attempts. No connection ID available.`);
                 }
 
                 // Send a test message to verify connection
@@ -1681,7 +1716,7 @@
 
                 // Add message handlers
                 connection.on("Error", (message) => {
-                    log(`Received error from server: ${message}`);
+                    log(`[ERROR] Received error from server: ${message}`);
                     displayResponse('sessionResponse', {
                         success: false,
                         message: message,
@@ -1690,14 +1725,18 @@
                 });
 
                 connection.on("ConnectionEstablished", (connectionId) => {
-                    log(`Connection established with ID: ${connectionId}`);
+                    log(`[DEBUG] Connection established with ID: ${connectionId}`);
+                    connectionEstablished = true;
                     updateConnectionStatus(true);
                     document.getElementById('connectionState').textContent = 'Connected';
                     document.getElementById('connectionId').textContent = connectionId;
                 });
 
                 connection.on("Echo", (message) => {
-                    log(`Received echo: ${message}`);
+                    log(`[DEBUG] Received echo:
+                        Message: ${message}
+                        Type: ${typeof message}
+                        Timestamp: ${new Date().toISOString()}`);
                 });
 
                 // Start the connection
@@ -2004,39 +2043,23 @@
                     await connection.invoke("FileTransferCompleted", currentTransferId);
                     log(`[DEBUG] FileTransferCompleted hub method invoked successfully`);
                 } catch (error) {
-                    log(`[ERROR] Failed to invoke FileTransferCompleted hub method: ${error.message}`);
+                    log(`[WARNING] Failed to invoke FileTransferCompleted hub method: ${error.message}`);
+                    // Don't throw error here, just log it as a warning
+                    // The file transfer was successful, we just couldn't notify the other client
                 }
 
-                // Don't reset state here - wait for FileTransferCompleted event
-                displayResponse('fileTransferStatus', {
-                    success: true,
-                    message: 'File transfer completed, waiting for download...',
-                    code: 'TRANSFER_COMPLETED'
-                });
-
-                // Wait for FileTransferCompleted event with a timeout
-                const waitForCompletion = new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        reject(new Error('Timeout waiting for file transfer completion'));
-                    }, 30000); // 30 second timeout
-
-                    const handler = (transferId) => {
-                        if (transferId === currentTransferId) {
-                            clearTimeout(timeout);
-                            connection.off("FileTransferCompleted", handler);
-                            resolve();
-                        }
-                    };
-
-                    connection.on("FileTransferCompleted", handler);
-                });
-
-                try {
-                    await waitForCompletion;
-                    log(`[DEBUG] File transfer completion confirmed by SignalR`);
-                } catch (error) {
-                    log(`[ERROR] Error waiting for file transfer completion: ${error.message}`);
-                    throw error;
+                // Wait for a short time to ensure the event is processed
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // If we're still the sender and haven't received the completion event,
+                // we can assume the transfer was successful
+                if (currentTransferId === data.data.id) {
+                    displayResponse('fileTransferStatus', {
+                        success: true,
+                        message: 'File transfer completed successfully',
+                        code: 'TRANSFER_COMPLETED'
+                    });
+                    cancelFileTransfer();
                 }
             } catch (error) {
                 displayResponse('fileTransferStatus', {

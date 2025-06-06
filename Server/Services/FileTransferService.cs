@@ -187,6 +187,7 @@ namespace Server.Services
                 {
                     try
                     {
+                        Console.WriteLine("1123123xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
                         await _hubContext.Clients.Client(session.ClientConnectionId)
                             .SendAsync("FileTransferCompleted", transferId);
                     }
