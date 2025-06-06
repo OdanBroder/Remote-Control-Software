@@ -110,40 +110,5 @@ namespace Client.Services
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
         }
-        public async Task<ApiResponse> JoinSessionAsync(string sessionId)
-        {
-            var token = TokenStorage.LoadToken();
-            if (string.IsNullOrEmpty(token))
-                throw new InvalidOperationException("Chưa đăng nhập");
-
-            if (_httpClient.DefaultRequestHeaders.Authorization == null)
-                SetAuthToken(token);
-
-            HttpResponseMessage response;
-            try
-            {
-                response = await _httpClient.PostAsync($"{baseUrl}/session/join/{sessionId}", null);
-            }
-            catch (Exception ex)
-            {
-                Console.Write(baseUrl);
-                Console.WriteLine(ex.Message);
-                throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<ApiResponse>(responseString);
-            Console.WriteLine($"Results join: {responseString}");
-            if(result is null)
-            {
-                throw new HttpRequestException($"Url not found while joining");
-            }
-            else if (!result.Success)
-            {
-                throw new HttpRequestException($"Error while joining session API: {responseString}");
-            }
-            return result;
-        }
     }
 }

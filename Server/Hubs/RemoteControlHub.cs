@@ -233,8 +233,9 @@ namespace Server.Hubs
                     _logger.LogWarning($"Invalid session attempt: {sessionId} by {Context.ConnectionId}");
                     return;
                 }
-
+                
                 var targetConnectionId = await _sessionService.GetTargetConnectionId(sessionId, Context.ConnectionId);
+                _logger.LogInformation($"Target Id is: {targetConnectionId}");
                 if (string.IsNullOrEmpty(targetConnectionId))
                 {
                     _logger.LogWarning($"No target connection found for session: {sessionId}");
@@ -242,12 +243,16 @@ namespace Server.Hubs
                 }
 
                 // Forward the full signal to the peer
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCSignal", new
+                var message = new WebRTCSignal
                 {
-                    fromConnectionId = Context.ConnectionId,
-                    signalType = signal.SignalType,
-                    signalData = signal.SignalData
-                });
+                    SessionIdentifier = sessionId,
+                    ConnectionId = Context.ConnectionId,
+                    SignalType = signal.SignalType,
+                    SignalData = signal.SignalData
+                };
+
+                await Clients.Client(targetConnectionId)
+                    .SendAsync("ReceiveWebRTCSignal", message);
             }
             catch (Exception ex)
             {

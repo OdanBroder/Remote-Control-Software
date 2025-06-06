@@ -163,7 +163,6 @@ namespace Client.Services
                 }
 
                 await _signalRService.ConnectToHubAsync(sessionId);
-                SessionStorage.SaveSession(sessionId);
                 
                 return result;
             }
