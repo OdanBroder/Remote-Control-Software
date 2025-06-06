@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Client.Views"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
@@ -14,7 +15,7 @@
             </LinearGradientBrush>
         </Grid.Background>
 
-        <Border Width="424" Height="41"
+        <Border Width="450" Height="41"
                 Background="WhiteSmoke"
                 BorderBrush="Gray"
                 BorderThickness="2"
@@ -22,15 +23,54 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
                 Padding="10" Margin="0,43,0,0">
-            <TextBlock FontSize="14"
-                TextWrapping="Wrap"
-                FontWeight="Bold"
-                TextAlignment="Center"
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Session Text -->
+                <TextBlock Grid.Column="0"
+                   FontSize="14"
+                   TextWrapping="Wrap"
+                   FontWeight="Bold"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Left">
+                    <Run Text="Your SessionId: " />
+                    <Run Text="{Binding Session}" />
+                </TextBlock>
+
+                <!-- Copy Button -->
+                <Button Grid.Column="1"
+                Width="18"
+                Height="18"
+                BorderThickness="0"
+                Background="Transparent"
+                HorizontalAlignment="Right"
                 VerticalAlignment="Center"
-                HorizontalAlignment="Center">
-                <Run Text="Your SessionId: " />
-                <Run Text="{Binding Session}" />
-            </TextBlock>
+                Command="{Binding CopySessionCommand}"
+                ToolTip="Copy">
+                    <fa:IconImage Icon="Clone"
+                          Width="16"
+                          Height="16" />
+                </Button>
+
+                <!-- Refresh Button -->
+                <Button Grid.Column="2"
+                Width="18"
+                Height="18"
+                BorderThickness="0"
+                Background="Transparent"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Command="{Binding ReconnectCommand}"
+                ToolTip="Reconnect">
+                    <fa:IconImage Icon="Refresh"
+                          Width="16"
+                          Height="16" />
+                </Button>
+            </Grid>
         </Border>
 
         <Button Content="Send Input" HorizontalAlignment="Left" Height="72" Margin="108,174,0,0" VerticalAlignment="Top" Width="99" Click="Button_Click"/>
@@ -61,14 +101,6 @@
                  Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" 
                  VerticalAlignment="Top" 
                  Width="404"/>
-        <TextBlock HorizontalAlignment="Left"
-                   Foreground="#D7596D"
-                   Height="48" Margin="158,374,0,0" 
-                   TextWrapping="Wrap" 
-                   Text="{Binding ErrorMessage, UpdateSourceTrigger=PropertyChanged}"  
-                   VerticalAlignment="Top" 
-                   Width="508"
-                   />
         <Button Content="Start streaming"
                 HorizontalAlignment="Left" 
                 Height="64" 

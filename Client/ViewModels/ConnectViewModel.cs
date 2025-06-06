@@ -7,6 +7,11 @@ using Client.Helpers;
 using Client.Services;
 using Newtonsoft.Json.Linq;
 using Serilog;
+using System.Windows;
+using System.Windows.Media.Animation;
+using System.Text;
+using System.Diagnostics;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Client.ViewModels
 {
@@ -68,6 +73,7 @@ namespace Client.ViewModels
         public ICommand ReconnectCommand { get; }
         public ICommand JoinSessionCommand { get; }
 
+        public ICommand CopySessionCommand { get; }
         public ConnectViewModel(SessionService sessionService, SignalRService signalRService)
         {
             ErrorMessage = string.Empty;
@@ -76,6 +82,7 @@ namespace Client.ViewModels
 
             ReconnectCommand = new AsyncRelayCommand(async _ => await ExecuteStartSession());
             JoinSessionCommand = new AsyncRelayCommand(async _ => await ExecuteJoinSessionAsync(), _ => !IsJoining);
+            CopySessionCommand = new AsyncRelayCommand(async _ => await ExecuteCopySessionAsync());
 
             _ = ExecuteStartSession();
         }
@@ -159,6 +166,24 @@ namespace Client.ViewModels
             }
         }
 
+        private async Task ExecuteCopySessionAsync()
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        System.Windows.Clipboard.SetText(Session);
+                    });
+                });
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Copy failed: {ex.Message}");
+            }
+        }
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName = null)
         {

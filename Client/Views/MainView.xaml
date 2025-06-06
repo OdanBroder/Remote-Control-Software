@@ -124,48 +124,7 @@
             </Border>
 
             <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="250"/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-
-                <Border Grid.Column="0" CornerRadius="10,0,0,10">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.7">
-                            <GradientStop Color="{StaticResource secondaryBackColor1}" Offset="0"/>
-                            <GradientStop Color="{StaticResource secondaryBackColor2}" Offset="0.7"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-
-                    <StackPanel>
-                        <RadioButton Style="{StaticResource menuButton}" Tag="Connect"
-                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconImage Icon="Handshake" Style="{StaticResource menuButtonIcon}"/>
-                                <TextBlock Text="Connect" Style="{StaticResource menuButtonText}"/>
-                            </StackPanel>
-                        </RadioButton>
-
-                        <RadioButton Style="{StaticResource menuButton}" Tag="File"
-                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconImage Icon="File" Style="{StaticResource menuButtonIcon}"/>
-                                <TextBlock Text="File Transfer" Style="{StaticResource menuButtonText}"/>
-                            </StackPanel>
-                        </RadioButton>
-
-                        <RadioButton Style="{StaticResource menuButton}" Tag="History"
-                                     Margin="0,10,0,0" Checked="RadioButton_Checked">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconImage Icon="History" Style="{StaticResource menuButtonIcon}"/>
-                                <TextBlock Text="History" Style="{StaticResource menuButtonText}"/>
-                            </StackPanel>
-                        </RadioButton>
-                    </StackPanel>
-                </Border>
-
-                
-                <Border Grid.Column="1" CornerRadius="0,10,10,0" Background="White">
+                <Border CornerRadius="0,10,10,0" Background="White">
                     <ContentControl x:Name="MainContentPresenter"
                     MinHeight="200"
                     MinWidth="400"
