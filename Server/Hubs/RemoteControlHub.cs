@@ -228,21 +228,48 @@ namespace Server.Hubs
         {
             try
             {
-                if (!await _sessionService.ValidateSession(sessionId, Context.ConnectionId))
+                var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
                 {
-                    _logger.LogWarning($"Invalid session attempt: {sessionId} by {Context.ConnectionId}");
+                    _logger.LogWarning("WebRTC signal attempt without user authentication");
                     return;
                 }
-                
-                var targetConnectionId = await _sessionService.GetTargetConnectionId(sessionId, Context.ConnectionId);
-                _logger.LogInformation($"Target Id is: {targetConnectionId}");
+
+                var session = await _sessionService.GetSession(sessionId);
+                if (session == null)
+                {
+                    _logger.LogWarning($"Session not found: {sessionId}");
+                    return;
+                }
+
+                // Verify user is part of the session
+                if (session.HostUserId.ToString() != userId && session.ClientUserId.ToString() != userId)
+                {
+                    _logger.LogWarning($"User {userId} is not authorized for session {sessionId}");
+                    return;
+                }
+
+                // Verify session is active
+                if (session.Status != "active")
+                {
+                    _logger.LogWarning($"Session {sessionId} is not active");
+                    return;
+                }
+
+                // Get target connection ID
+                var targetConnectionId = session.HostConnectionId == Context.ConnectionId 
+                    ? session.ClientConnectionId 
+                    : session.HostConnectionId;
+
                 if (string.IsNullOrEmpty(targetConnectionId))
                 {
                     _logger.LogWarning($"No target connection found for session: {sessionId}");
                     return;
                 }
 
-                // Forward the full signal to the peer
+                _logger.LogInformation($"Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
+
+                // Forward the signal to the peer
                 var message = new WebRTCSignal
                 {
                     SessionIdentifier = sessionId,
