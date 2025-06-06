@@ -123,11 +123,11 @@ namespace Client.Services
         {
             _globalHook.KeyDown += _keyDownHandler;
             _globalHook.MouseDown += _mouseDownHandler;
-            //_globalHook.MouseUp += _mouseUpHandler;
+            _globalHook.MouseUp += _mouseUpHandler;
             _globalHook.MouseClick += _mouseClickHandler;
-            //_globalHook.MouseDoubleClick += _mouseDoubleClickHandler;
-            //_globalHook.MouseMove += _mouseMoveHandler;
-            //_globalHook.MouseWheel += _mouseWheelHandler;
+            _globalHook.MouseDoubleClick += _mouseDoubleClickHandler;
+            _globalHook.MouseMove += _mouseMoveHandler;
+            _globalHook.MouseWheel += _mouseWheelHandler;
         }
 
         /// <summary>
@@ -159,11 +159,11 @@ namespace Client.Services
         {
             _globalHook.KeyDown -= _keyDownHandler;
             _globalHook.MouseDown -= _mouseDownHandler;
-            //_globalHook.MouseUp -= _mouseUpHandler;
+            _globalHook.MouseUp -= _mouseUpHandler;
             _globalHook.MouseClick -= _mouseClickHandler;
-            //_globalHook.MouseDoubleClick -= _mouseDoubleClickHandler;
-            //_globalHook.MouseMove -= _mouseMoveHandler;
-            //_globalHook.MouseWheel -= _mouseWheelHandler;
+            _globalHook.MouseDoubleClick -= _mouseDoubleClickHandler;
+            _globalHook.MouseMove -= _mouseMoveHandler;
+            _globalHook.MouseWheel -= _mouseWheelHandler;
         }
 
         /// <summary>

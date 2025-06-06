@@ -148,6 +148,9 @@
     <Compile Include="Views\ScreenCaptureView.xaml.cs">
       <DependentUpon>ScreenCaptureView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\TestView.xaml.cs">
+      <DependentUpon>TestView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\Test_session.xaml.cs">
       <DependentUpon>Test_session.xaml</DependentUpon>
     </Compile>
@@ -184,6 +187,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ScreenCaptureView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\TestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

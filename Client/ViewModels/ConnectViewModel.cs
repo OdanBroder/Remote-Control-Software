@@ -64,6 +64,7 @@ namespace Client.ViewModels
 
         public ICommand ReconnectCommand { get; }
         public ICommand JoinSessionCommand { get; }
+        public ICommand LeaveSessionCommand { get; }
         public ICommand CopySessionCommand { get; }
         public ICommand ConnectCommand { get; }
         public ICommand DisconnectCommand { get; }
@@ -82,10 +83,11 @@ namespace Client.ViewModels
             ErrorMessage = string.Empty;
             _sessionService = sessionService;
             _signalRService = signalRService;
-            _sendInput = new SendInputServices();
+            _sendInput = new SendInputServices(_signalRService);
             _streamScreen = new SendWebRTCSignal(_signalRService);
 
             ReconnectCommand = new AsyncRelayCommand(async _ => await ExecuteStartSession());
+            LeaveSessionCommand = new AsyncRelayCommand(async _ => await ExecuteLeaveSessionAsync());
             JoinSessionCommand = new AsyncRelayCommand(async _ => await ExecuteJoinSessionAsync());
             CopySessionCommand = new AsyncRelayCommand(async _ => await ExecuteCopySessionAsync());
             ConnectCommand = new AsyncRelayCommand(async _ => await ExecuteConnectSessionAsync());
@@ -122,46 +124,7 @@ namespace Client.ViewModels
                 Console.WriteLine(ex.Message, "Failed to reconnect session");
             }
         }
-        private async Task ExecuteConnectSessionAsync()
-        {
-            ErrorMessage = string.Empty;
-            try
-            {
-                string sessionId = SessionStorage.LoadSession();
-                string connectId = ConnectionStorage.LoadConnectionId();
-                Log.Information($"Connection Id {connectId}");
-                await _sessionService.ConnectToSessionAsync(sessionId, connectId);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, "Failed to reconnect session");
-            }
-        }
 
-        private async Task ExecuteDisconnectSessionAsync()
-        {
-            ErrorMessage = string.Empty;
-            try
-            {
-                var response = await _sessionService.GetActiveSessionAsync();
-                if (response.Code == "SESSIONS_FOUND")
-                {
-                    string sessionId = SessionStorage.LoadSession();
-                    string connectId = ConnectionStorage.LoadConnectionId();
-                    Log.Information($"Connection Id {connectId}");
-                    await _sessionService.DisconnectToSessionAsync(sessionId, connectId);
-                }
-                else
-                {
-                    ErrorMessage = "Connection Id not found please join first!";
-                    Log.Information($"Connection Id not found please join first!");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, "Failed to reconnect session");
-            }
-        }
         private async Task ExecuteJoinSessionAsync()
         {
             ErrorMessage = string.Empty;
@@ -215,6 +178,79 @@ namespace Client.ViewModels
             catch (Exception ex)
             {
                 ErrorMessage = ex.Message;
+            }
+        }
+
+        private async Task ExecuteLeaveSessionAsync()
+        {
+            ErrorMessage = string.Empty;
+
+            try
+            {
+                var response = await _sessionService.GetActiveSessionAsync();
+                if (response.Code == "SESSIONS_FOUND")
+                {
+                    foreach (var session in response.Data)
+                    {
+                        await _sessionService.LeaveSessionAsync(session.SessionId);
+                    }
+                    Session = null;
+                    Log.Information("Successfully left all active sessions");
+                }
+                else if (response.Code == "NO_SESSIONS")
+                {
+                    Log.Information("No active sessions to leave");
+                }
+                else
+                {
+                    ErrorMessage = response.Message;
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error leaving session: {ex.Message}";
+                Log.Error(ex, "Failed to leave session");
+            }
+        }
+
+        private async Task ExecuteConnectSessionAsync()
+        {
+            ErrorMessage = string.Empty;
+            try
+            {
+                string sessionId = SessionStorage.LoadSession();
+                string connectId = ConnectionStorage.LoadConnectionId();
+                Log.Information($"Connection Id {connectId}");
+                await _sessionService.ConnectToSessionAsync(sessionId, connectId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message, "Failed to reconnect session");
+            }
+        }
+
+        private async Task ExecuteDisconnectSessionAsync()
+        {
+            ErrorMessage = string.Empty;
+            try
+            {
+                var response = await _sessionService.GetActiveSessionAsync();
+                if (response.Code == "SESSIONS_FOUND")
+                {
+                    string sessionId = SessionStorage.LoadSession();
+                    string connectId = ConnectionStorage.LoadConnectionId();
+                    Log.Information($"Connection Id {connectId}");
+                    await _sessionService.DisconnectToSessionAsync(sessionId, connectId);
+                }
+                else
+                {
+                    ErrorMessage = "Connection Id not found please join first!";
+                    Log.Information($"Connection Id not found please join first!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message, "Failed to reconnect session");
             }
         }
 

@@ -269,31 +269,41 @@ namespace Server.Controllers
                     });
                 }
 
-                if (user.Id != session.HostUserId)
+                // If user is the host, end the session
+                if (user.Id == session.HostUserId)
                 {
-                    return StatusCode(403, new { 
+                    session.Status = "ended";
+                }
+                // If user is the client, remove them from the session
+                else if (user.Id == session.ClientUserId)
+                {
+                    session.ClientUserId = null;
+                    session.ClientConnectionId = null;
+                }
+                else
+                {
+                    return Unauthorized(new { 
                         success = false,
-                        message = "Only the host can stop the session",
-                        code = "HOST_ONLY"
+                        message = "User is not part of this session",
+                        code = "NOT_SESSION_MEMBER"
                     });
                 }
 
-                session.Status = "ended";
                 session.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
                 return Ok(new { 
                     success = true,
-                    message = "Session stopped successfully",
-                    code = "SESSION_STOPPED"
+                    message = user.Id == session.HostUserId ? "Session stopped successfully" : "Successfully left session",
+                    code = user.Id == session.HostUserId ? "SESSION_STOPPED" : "SESSION_LEFT"
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error stopping session {sessionId}");
+                _logger.LogError(ex, $"Error stopping/leaving session {sessionId}");
                 return StatusCode(500, new { 
                     success = false,
-                    message = "An error occurred while stopping the session",
+                    message = "An error occurred while stopping/leaving the session",
                     code = "SERVER_ERROR"
                 });
             }

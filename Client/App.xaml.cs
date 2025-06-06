@@ -27,10 +27,19 @@ namespace Client
         }
         protected void ApplicationStart(object sender, StartupEventArgs e)
         {
-            var mainView = new MainView();
-            mainView.Show();
-            //var loginView = new LoginView();
-            //loginView.Show();
+            // var mainView = new MainView();
+            // mainView.Show();
+            var loginView = new LoginView();
+            loginView.Show();
+            // var window = new Window
+            // {
+            //     Title = "Test View",
+            //     Content = new TestView(),
+            //     Width = 800,
+            //     Height = 450,
+            //     WindowStartupLocation = WindowStartupLocation.CenterScreen
+            // };
+            // window.Show();
         }
     }
 }

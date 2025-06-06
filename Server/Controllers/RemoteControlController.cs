@@ -7,10 +7,10 @@ using Server.Services;
 using Server.Hubs;
 using System.Security.Claims;
 using System.Text.Json;
-using System;
+// using System;
 
-using Newtonsoft.Json.Serialization;
-using Newtonsoft.Json;
+// using Newtonsoft.Json.Serialization;
+// using Newtonsoft.Json;
 
 namespace Server.Controllers
 {
@@ -139,7 +139,7 @@ namespace Server.Controllers
                 var inputAction = new InputAction
                 {
                     SessionIdentifier = request.SessionIdentifier,
-                    Action = System.Text.Json.JsonSerializer.Serialize(request.Action),
+                    Action = JsonSerializer.Serialize(request.Action),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -161,12 +161,13 @@ namespace Server.Controllers
                 // Send the input action to the client
                 try
                 {
-                    var settings = new JsonSerializerSettings
-                    {
-                        ContractResolver = new CamelCasePropertyNamesContractResolver()
-                    };
+                    var serializedAction = JsonSerializer.Serialize(request.Action);
+                    // var settings = new JsonSerializerSettings
+                    // {
+                    //     ContractResolver = new CamelCasePropertyNamesContractResolver()
+                    // };
 
-                    string serializedAction = JsonConvert.SerializeObject(request.Action, settings);
+                    // string serializedAction = JsonConvert.SerializeObject(request.Action, settings);
 
                     //var serializedAction = JsonSerializer.Serialize(request.Action);
                     Console.WriteLine($"Action json: {serializedAction}");
