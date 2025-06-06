@@ -8,3 +8,5 @@
 packages/
 *.nupkg
 certs/
+*.csproj
+*.sln
