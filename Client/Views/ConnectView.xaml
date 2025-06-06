@@ -61,14 +61,26 @@
                  Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" 
                  VerticalAlignment="Top" 
                  Width="404"/>
-        <TextBlock HorizontalAlignment="Center"
+        <TextBlock HorizontalAlignment="Left"
                    Foreground="#D7596D"
-                   Height="32" Margin="0,288,0,0" 
+                   Height="48" Margin="158,374,0,0" 
                    TextWrapping="Wrap" 
                    Text="{Binding ErrorMessage, UpdateSourceTrigger=PropertyChanged}"  
                    VerticalAlignment="Top" 
-                   Width="406"
+                   Width="508"
                    />
+        <Button Content="Start streaming"
+                HorizontalAlignment="Left" 
+                Height="64" 
+                Margin="108,277,0,0" 
+                VerticalAlignment="Top" 
+                Width="99" Click="Button_Click_2"/>
+        <Button Content="Stop streaming"
+                HorizontalAlignment="Left" 
+                Height="64" Margin="239,277,0,0" 
+                VerticalAlignment="Top" 
+                Width="105" Click="Button_Click_3"/>
+        <Button Content="Accept Streaming" HorizontalAlignment="Left" Height="77" Margin="376,277,0,0" VerticalAlignment="Top" Width="108" Click="Button_Click_4"/>
 
 
 

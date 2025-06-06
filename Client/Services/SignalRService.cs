@@ -10,6 +10,10 @@ using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 using Client.Helpers;
 using System.Net.Http;
+using System.Data.Common;
+using Microsoft.AspNetCore.Http.Connections;
+using System.Security.Cryptography.X509Certificates;
+using Serilog;
 
 namespace Client.Services
 {
@@ -19,11 +23,13 @@ namespace Client.Services
         private string _connectionId;
         private bool _isConnected;
         private string _connectionStatus;
-        private readonly string _token;
+        private string _token, _sessionId;
         private PeerConnection _peerConnection;
         private WebRTCService _webrtcClient;
         private readonly string _hubUrl = AppSettings.BaseApiUri + "/remotecontrolhub";
         private bool _connectionEstablished = false;
+        private string _publicKey;
+        private string _privateKey;
 
         public string ConnectionId
         {
@@ -50,6 +56,7 @@ namespace Client.Services
         public SignalRService()
         {
             _token = TokenStorage.LoadToken();
+            _sessionId = SessionStorage.LoadSession();
             ConnectionStatus = "Disconnected";
         }
 
@@ -69,12 +76,9 @@ namespace Client.Services
                     {
                         options.HttpMessageHandlerFactory = _ => handler;
                         options.AccessTokenProvider = () => Task.FromResult(_token);
-                        options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+                        options.Transports = HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling; ;
                         options.SkipNegotiation = false;
-                        options.Headers = new Dictionary<string, string>
-                        {
-                            { "Authorization", $"Bearer {_token}" }
-                        };
+
                     })
                     .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(20) })
                     .ConfigureLogging(logging =>
@@ -185,7 +189,7 @@ namespace Client.Services
                         $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
 
                     await Task.Delay(100); // Small delay to ensure proper sequencing
-                    
+
                 }
                 catch (Exception ex)
                 {
@@ -219,6 +223,16 @@ namespace Client.Services
                     $"Message: {message}\n" +
                     $"Type: {message.GetType()}\n" +
                     $"Timestamp: {DateTime.UtcNow:O}");
+            });
+            _connection.On<string, string>("ReceiveKeyPair", (publicKey, privateKey) =>
+            {
+                Console.WriteLine($"[DEBUG] Received key pair:");
+                Console.WriteLine($"Public Key: {publicKey}");
+                Console.WriteLine($"Private Key: {privateKey}");
+
+                // Store them if needed
+                _publicKey = publicKey;
+                _privateKey = privateKey;
             });
 
             _connection.Reconnecting += error =>
@@ -256,12 +270,12 @@ namespace Client.Services
             };
 
             // WebRTC signal handlers
-            _connection.On<object>("ReceiveWebRTCSignal", async (signal) =>
+            _connection.On<dynamic>("ReceiveWebRTCSignal", async payload =>
             {
                 try
                 {
-                    var signalData = JsonConvert.DeserializeObject<WebRTCSignal>(JsonConvert.SerializeObject(signal));
-                    Console.WriteLine($"Received WebRTC {signalData.SignalType} signal from {signalData.ConnectionId}");
+                    var signalData = JsonConvert.DeserializeObject<WebRTCSignal>(JsonConvert.SerializeObject(payload));
+                    Log.Information($"Received WebRTC {signalData.SignalType} signal from {signalData.ConnectionId}");
 
                     // Handle WebRTC signaling
                     switch (signalData.SignalType.ToLower())
@@ -285,7 +299,7 @@ namespace Client.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Error processing WebRTC signal: {ex.Message}");
+                    Log.Error(ex, "Error processing WebRTC signal");
                 }
             });
         }
@@ -295,6 +309,7 @@ namespace Client.Services
             var pc = await GetOrCreatePeerAsync(connectionId);
             if (pc == null)
             {
+                Log.Information("[Error] PeerConnection not found...");
                 Console.WriteLine($"[{connectionId}] Failed to get or create PeerConnection.");
                 return;
             }
@@ -368,14 +383,15 @@ namespace Client.Services
                     new IceServer { Urls = { "stun:stun.l.google.com:19302" } }
                 }
             };
-            
+
             try
             {
+                _sessionId = SessionStorage.LoadSession();
                 await _peerConnection.InitializeAsync(config);
 
                 _peerConnection.LocalSdpReadytoSend += async (SdpMessage msg) =>
                 {
-                    await _connection.InvokeAsync("SendWebRTCState", JsonConvert.SerializeObject(new
+                    await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, JsonConvert.SerializeObject(new
                     {
                         Type = msg.Type.ToString().ToLower(),
                         Sdp = msg.Content,
@@ -385,7 +401,7 @@ namespace Client.Services
 
                 _peerConnection.IceCandidateReadytoSend += async (IceCandidate candidate) =>
                 {
-                    await _connection.InvokeAsync("SendWebRTCState", JsonConvert.SerializeObject(new
+                    await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, JsonConvert.SerializeObject(new
                     {
                         Type = "ice-candidate",
                         Candidate = candidate.Content,
@@ -395,22 +411,30 @@ namespace Client.Services
                     }));
                 };
 
+                // Handle incoming video tracks
                 _peerConnection.VideoTrackAdded += track =>
                 {
+                    Log.Information($"Video track added: {track.Name}");
                     Console.WriteLine($"Video track added: {track.Name}");
+
+                    // Notify any subscribers about the new video track
+                    OnVideoTrackAdded?.Invoke(track);
                 };
 
                 return _peerConnection;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message, "Error initializing PeerConnection");
+                Log.Error(ex, "Error initializing PeerConnection");
                 _peerConnection = null;
                 return null;
             }
         }
-     
-        public async Task DisconnectAsync() 
+
+        // Event for video track addition
+        public event Action<RemoteVideoTrack> OnVideoTrackAdded;
+
+        public async Task DisconnectAsync()
         {
             if (_connection != null)
             {
@@ -418,6 +442,28 @@ namespace Client.Services
                 await _connection.DisposeAsync();
                 IsConnected = false;
                 ConnectionStatus = "Disconnected";
+            }
+        }
+
+        public async Task SendWebRTCSignal(WebRTCSignal signal)
+        {
+            if (_connection == null || _connection.State != HubConnectionState.Connected)
+            {
+                Log.Error("SignalR connection is not established. State: {State}", _connection?.State);
+                throw new InvalidOperationException("SignalR connection is not established");
+            }
+
+            try
+            {
+                _sessionId = SessionStorage.LoadSession();
+                Log.Information("Sending WebRTC signal - Type: {SignalType}, SessionId: {SessionId}", signal.SignalType, _sessionId);
+                await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, signal);
+                Log.Information("WebRTC signal sent successfully - Type: {SignalType}", signal.SignalType);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to send WebRTC signal - Type: {SignalType}", signal.SignalType);
+                throw;
             }
         }
     }

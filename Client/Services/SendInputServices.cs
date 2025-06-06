@@ -62,7 +62,7 @@ namespace Client.Services
             
             if (inputAction == null)
             {
-                Console.WriteLine($"Failed to create input action for action: {inputAction.Action}");
+                Console.WriteLine($"Failed to create input action for action: {inputAction?.Action}");
                 throw new ArgumentException($"Unsupported input type: {inputAction.Type}");
             }
             try

@@ -8,6 +8,6 @@ namespace Client.Helpers
 {
     public static class AppSettings
     {
-        public static string BaseApiUri = "https://localhost:5031";
+        public static string BaseApiUri = "http://localhost:5030";
     }
 }

@@ -19,10 +19,7 @@ namespace Client.Views
     /// Interaction logic for Test_session.xaml
     /// </summary>
     public partial class Test_session : Window
-    {
-        private readonly SessionService _sessionService = new SessionService();
-        private readonly SessionService _hubService = new SessionService();
-
+    {   
         public Test_session()
         {
             InitializeComponent();

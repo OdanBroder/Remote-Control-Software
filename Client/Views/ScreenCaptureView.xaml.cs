@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace Client.Views
 {
@@ -19,24 +20,44 @@ namespace Client.Views
     /// </summary>
     public partial class ScreenCaptureView : Window
     {
+        private readonly DispatcherTimer _frameTimer;
+        private BitmapSource _currentFrame;
+        private readonly object _frameLock = new object();
+
         public ScreenCaptureView()
         {
             InitializeComponent();
-            UpdateFrame(LoadTestImage());
+            _frameTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(16) // ~60 FPS
+            };
+            _frameTimer.Tick += FrameTimer_Tick;
+            _frameTimer.Start();
         }
 
-        public void UpdateFrame(BitmapImage frame)
+        public void UpdateFrame(BitmapSource frame)
         {
-            CaptureImage.Source = frame;
+            lock (_frameLock)
+            {
+                _currentFrame = frame;
+            }
         }
 
-        private BitmapImage LoadTestImage()
+        private void FrameTimer_Tick(object sender, EventArgs e)
         {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.UriSource = new Uri("pack://application:,,,/Images/key-icon.png");
-            image.EndInit();
-            return image;
+            lock (_frameLock)
+            {
+                if (_currentFrame != null)
+                {
+                    CaptureImage.Source = _currentFrame;
+                }
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _frameTimer.Stop();
+            base.OnClosed(e);
         }
     }
 }

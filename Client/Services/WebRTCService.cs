@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.MixedReality.WebRTC;
-//using ScreenCaptureI420A; // C++/CLI assembly
-//using Serilog;
+using ScreenCaptureI420A; // C++/CLI assembly
+using Serilog;
 using System.Runtime.InteropServices;
 namespace Client.Services
 {
@@ -13,7 +13,6 @@ namespace Client.Services
     {
         private ExternalVideoTrackSource _trackSource;
         private GCHandle _bufferHandle;
-        private byte[] _managedBuffer;
         private DateTime _startTime = DateTime.UtcNow;
 
         private int _currentWidth;
@@ -24,16 +23,19 @@ namespace Client.Services
         public WebRTCService()
         {
             // Tạo video track source từ callback ARGB32
-            _trackSource = ExternalVideoTrackSource.CreateFromI420ACallback(OnFrameRequested);
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .CreateLogger();
+             _trackSource = ExternalVideoTrackSource.CreateFromI420ACallback(OnFrameRequested);
         }
 
         /// <summary>
         /// Gán delegate từ C++/CLI sang hàm xử lý bên này
         /// </summary>
-        //public void AttachToScreenCapture(ScreenCaptureDXGI capture)
-        //{
-        //    capture.OnFrameCaptured += OnI420AFrame;
-        //}
+        public void AttachToScreenCapture(ScreenCaptureDXGI capture)
+        {
+            capture.OnFrameCaptured += OnI420AFrame;
+        }
 
         /// <summary>
         /// Gọi bởi C++/CLI khi capture được frame
@@ -46,7 +48,7 @@ namespace Client.Services
             IntPtr vPlane,
             IntPtr aPlane)
         {
-            //Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
+            Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
             int ySize = stride * height;
             int uvWidth = width / 2;
             int uvHeight = height / 2;
@@ -84,11 +86,11 @@ namespace Client.Services
         /// </summary>
         public unsafe void OnFrameRequested(in FrameRequest request)
         {
-            //Log.Information("OnFrameRequested: frame requested");
+            Log.Information("OnFrameRequested: frame requested");
             // Nếu buffer chưa được cấp phát hoặc không hợp lệ thì không làm gì
             if (_yHandle.IsAllocated == false || _uHandle.IsAllocated == false || _vHandle.IsAllocated == false || _aHandle.IsAllocated == false)
                 return;
-            //Log.Information("OnFrameRequested: frame exist");
+            Log.Information("OnFrameRequested: frame exist");
             // Đảm bảo rằng bạn đang làm việc với dữ liệu I420A đã có từ delegate
             byte* yPtr = (byte*)_yHandle.AddrOfPinnedObject();
             byte* uPtr = (byte*)_uHandle.AddrOfPinnedObject();

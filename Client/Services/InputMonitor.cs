@@ -56,7 +56,15 @@ namespace Client.Services
                         Action = "keydown",
                         Key = e.KeyCode.ToString()
                     };
-                    await _inputSender.SendInputAsync(action);
+                    try
+                    {
+                        await _inputSender.SendInputAsync(action);
+                    }
+                    catch (Exception ex)
+                    {
+                        Stop();
+                        Console.WriteLine($"Error while sending keyboard action: {ex.Message}");
+                    }
                 };
 
                 // Initialize mouse handlers
@@ -95,7 +103,16 @@ namespace Client.Services
                     X = e.X,
                     Y = e.Y
                 };
-                await _inputSender.SendInputAsync(action);
+                try
+                {
+                    await _inputSender.SendInputAsync(action);
+                }
+                catch (Exception ex)
+                {
+                    Stop();
+                    Console.WriteLine($"Error while sending mouse action: {ex.Message}");
+                } 
+                
             };
         }
 
