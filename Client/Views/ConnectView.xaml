@@ -100,7 +100,57 @@
                 </Button>
             </Grid>
         </Border>
+        <Border
+            Width="490"
+            Height="41"
+            Margin="0,90,0,0"
+            Padding="10"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Background="WhiteSmoke"
+            BorderBrush="Gray"
+            BorderThickness="2"
+            CornerRadius="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
+                <TextBlock
+                    Grid.Column="0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="Bold"
+                    TextWrapping="Wrap">
+                    <Run Text="Enter Remote Session ID:" />
+                </TextBlock>
+
+                <TextBox Grid.Column="1"
+                         FontFamily="Bold"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         FontSize="14">
+                    
+                </TextBox>
+                <Button
+                    Grid.Column="2"
+                    Width="18"
+                    Height="18"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ToolTip="Reconnect">
+                    <fa:IconImage
+                        Width="16"
+                        Height="16"
+                        Icon="SignIn" />
+                </Button>
+            </Grid>
+        </Border>
         <Button
             Width="99"
             Height="72"
@@ -134,22 +184,6 @@
             Command="{Binding JoinSessionCommand}"
             Content="Join Session"
             RenderTransformOrigin="0.847,0.556" />
-        <TextBox
-            Width="495"
-            Height="41"
-            Margin="0,90,0,0"
-            Padding="10"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Top"
-            Background="WhiteSmoke"
-            BorderBrush="Gray"
-            BorderThickness="2"
-            FontSize="14"
-            FontWeight="Bold"
-            Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
-            TextAlignment="Center"
-            TextWrapping="Wrap"
-            Style="{StaticResource RoundedTextBox}" />
         <Button
             Width="99"
             Height="64"
@@ -188,6 +222,7 @@
             Margin="108,375,0,0"
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
-            Content="Button" />
+            Content="Disconnect" 
+            Command="{Binding DisconnectCommand}"/>
     </Grid>
 </UserControl>
