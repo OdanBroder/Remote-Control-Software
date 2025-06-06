@@ -252,47 +252,6 @@ namespace Client.ViewModels
             }
         }
 
-        private async Task ExecuteConnectSessionAsync()
-        {
-            ErrorMessage = string.Empty;
-            try
-            {
-                string sessionId = SessionStorage.LoadSession();
-                string connectId = ConnectionStorage.LoadConnectionId();
-                Log.Information($"Connection Id {connectId}");
-                await _sessionService.ConnectToSessionAsync(sessionId, connectId);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, "Failed to reconnect session");
-            }
-        }
-
-        private async Task ExecuteDisconnectSessionAsync()
-        {
-            ErrorMessage = string.Empty;
-            try
-            {
-                var response = await _sessionService.GetActiveSessionAsync();
-                if (response.Code == "SESSIONS_FOUND")
-                {
-                    string sessionId = SessionStorage.LoadSession();
-                    string connectId = ConnectionStorage.LoadConnectionId();
-                    Log.Information($"Connection Id {connectId}");
-                    await _sessionService.DisconnectToSessionAsync(sessionId, connectId);
-                }
-                else
-                {
-                    ErrorMessage = "Connection Id not found please join first!";
-                    Log.Information($"Connection Id not found please join first!");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, "Failed to reconnect session");
-            }
-        }
-
         private async Task ExecuteCopySessionAsync()
         {
             try
