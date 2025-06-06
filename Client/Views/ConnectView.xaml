@@ -112,7 +112,12 @@
                 Height="64" Margin="239,277,0,0" 
                 VerticalAlignment="Top" 
                 Width="105" Click="Button_Click_3"/>
-        <Button Content="Accept Streaming" HorizontalAlignment="Left" Height="77" Margin="376,277,0,0" VerticalAlignment="Top" Width="108" Click="Button_Click_4"/>
+        <Button Content="Accept Streaming" HorizontalAlignment="Left" Height="64" Margin="376,277,0,0" VerticalAlignment="Top" Width="108" Click="Button_Click_4"/>
+        <Button Content="Connect" 
+                Command="{Binding ConnectCommand}"
+                HorizontalAlignment="Left" 
+                Height="64" 
+                Margin="510,277,0,0" VerticalAlignment="Top" Width="118"/>
 
 
 

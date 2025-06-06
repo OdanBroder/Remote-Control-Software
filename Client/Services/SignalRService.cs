@@ -148,6 +148,7 @@ namespace Client.Services
                 Console.WriteLine($"[DEBUG] Connection established with ID: {connectionId}");
                 _connectionEstablished = true;
                 ConnectionId = connectionId;
+                ConnectionStorage.SaveConnectionId(ConnectionId);
                 IsConnected = true;
                 ConnectionStatus = "Connected";
             });

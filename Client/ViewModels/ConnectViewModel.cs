@@ -12,6 +12,7 @@ using System.Windows.Media.Animation;
 using System.Text;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
+using Client.Src.Services;
 
 namespace Client.ViewModels
 {
@@ -74,6 +75,7 @@ namespace Client.ViewModels
         public ICommand JoinSessionCommand { get; }
 
         public ICommand CopySessionCommand { get; }
+        public ICommand ConnectCommand { get; }
         public ConnectViewModel(SessionService sessionService, SignalRService signalRService)
         {
             ErrorMessage = string.Empty;
@@ -84,6 +86,7 @@ namespace Client.ViewModels
             JoinSessionCommand = new AsyncRelayCommand(async _ => await ExecuteJoinSessionAsync(), _ => !IsJoining);
             CopySessionCommand = new AsyncRelayCommand(async _ => await ExecuteCopySessionAsync());
 
+            ConnectCommand = new AsyncRelayCommand(async _ => await ExecuteConnectSessionAsync());
             _ = ExecuteStartSession();
         }
         private async Task ExecuteStartSession()
@@ -108,7 +111,30 @@ namespace Client.ViewModels
                 Console.WriteLine(ex.Message, "Failed to reconnect session");
             }
         }
-
+        private async Task ExecuteConnectSessionAsync()
+        {
+            ErrorMessage = string.Empty;
+            try
+            {
+                var response = await _sessionService.GetActiveSessionAsync();
+                if (response.Code == "SESSIONS_FOUND" && !IsJoining)
+                {
+                    string sessionId = SessionStorage.LoadSession();
+                    string connectId = ConnectionStorage.LoadConnectionId();
+                    Log.Information($"Connection Id {connectId}");
+                    await _sessionService.ConnectToSessionAsync(sessionId,connectId);
+                }
+               else
+                {
+                    ErrorMessage = "Connection Id not found please join first!";
+                    Log.Information($"Connection Id not found please join first!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message, "Failed to reconnect session");
+            }
+        }
         private async Task ExecuteJoinSessionAsync()
         {
             IsJoining = true;
