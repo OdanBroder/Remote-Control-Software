@@ -2,9 +2,6 @@ using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Models;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
 
 namespace Server.Services
 {

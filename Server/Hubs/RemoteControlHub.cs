@@ -71,7 +71,8 @@ namespace Server.Hubs
                             .SendAsync("PeerConnected", Context.ConnectionId);
                     }
                 }
-
+                _logger.LogDebug($"calling connection established for {Context.ConnectionId}");
+                await Clients.Caller.SendAsync("ConnectionEstablished", Context.ConnectionId);
                 await base.OnConnectedAsync();
             }
             catch (Exception ex)
@@ -223,7 +224,7 @@ namespace Server.Hubs
             }
         }
 
-        public async Task SendWebRTCSignal(string sessionId, string signal)
+        public async Task SendWebRTCSignal(string sessionId, WebRTCSignal signal)
         {
             try
             {
@@ -240,12 +241,12 @@ namespace Server.Hubs
                     return;
                 }
 
-                // Forward the signal to the target connection
+                // Forward the full signal to the peer
                 await Clients.Client(targetConnectionId).SendAsync("ReceiveWebRTCSignal", new
                 {
-                    signalType = signal.Split(':')[0],
-                    signalData = signal.Split(':')[1],
-                    fromConnectionId = Context.ConnectionId
+                    fromConnectionId = Context.ConnectionId,
+                    signalType = signal.SignalType,
+                    signalData = signal.SignalData
                 });
             }
             catch (Exception ex)
@@ -253,6 +254,7 @@ namespace Server.Hubs
                 _logger.LogError(ex, $"Error forwarding WebRTC signal for session: {sessionId}");
             }
         }
+
 
         public async Task SendWebRTCState(string sessionId, string state)
         {
