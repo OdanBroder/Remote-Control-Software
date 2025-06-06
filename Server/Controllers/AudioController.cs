@@ -42,7 +42,11 @@ namespace Server.Controllers
             {
                 if (string.IsNullOrEmpty(request.SessionId))
                 {
-                    return BadRequest("Session ID is required");
+                    return BadRequest(new {
+                        success = false,
+                        message = "Session ID is required",
+                        code = "SESSION_ID_REQUIRED"
+                    });
                 }
 
                 var sessionInfo = _sessions.GetOrAdd(request.SessionId, _ => new SessionInfo());
@@ -58,15 +62,23 @@ namespace Server.Controllers
                 _ = Task.Run(() => ListenForAudioData(request.SessionId, clientId, udpClient));
 
                 return Ok(new { 
-                    Port = _udpPort, 
-                    ClientId = clientId,
-                    Message = "Audio stream started successfully" 
+                    success = true,
+                    message = "Audio stream started successfully",
+                    code = "STREAM_STARTED",
+                    data = new {
+                        Port = _udpPort, 
+                        ClientId = clientId
+                    }
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting audio stream");
-                return StatusCode(500, "Failed to start audio stream");
+                return StatusCode(500, new {
+                    success = false,
+                    message = "Failed to start audio stream",
+                    code = "STREAM_START_FAILED"
+                });
             }
         }
 
@@ -85,7 +97,11 @@ namespace Server.Controllers
             {
                 if (string.IsNullOrEmpty(request.SessionId) || string.IsNullOrEmpty(request.ClientId))
                 {
-                    return BadRequest("Session ID and Client ID are required");
+                    return BadRequest(new {
+                        success = false,
+                        message = "Session ID and Client ID are required",
+                        code = "SESSION_CLIENT_ID_REQUIRED"
+                    });
                 }
 
                 if (_sessions.TryGetValue(request.SessionId, out var sessionInfo))
@@ -99,16 +115,28 @@ namespace Server.Controllers
                             _sessions.TryRemove(request.SessionId, out _);
                         }
                         
-                        return Ok(new { Message = "Audio stream stopped successfully" });
+                        return Ok(new { 
+                            success = true,
+                            message = "Audio stream stopped successfully",
+                            code = "STREAM_STOPPED"
+                        });
                     }
                 }
 
-                return NotFound("No active stream found for the given session and client");
+                return NotFound(new {
+                    success = false,
+                    message = "No active stream found for the given session and client",
+                    code = "STREAM_NOT_FOUND"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error stopping audio stream");
-                return StatusCode(500, "Failed to stop audio stream");
+                return StatusCode(500, new {
+                    success = false,
+                    message = "Failed to stop audio stream",
+                    code = "STREAM_STOP_FAILED"
+                });
             }
         }
 

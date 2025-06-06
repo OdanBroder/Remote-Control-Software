@@ -231,7 +231,11 @@ namespace Server.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized(new { Message = "User not authenticated" });
+                    return Unauthorized(new { 
+                        success = false,
+                        message = "User not authenticated",
+                        code = "AUTH_REQUIRED"
+                    });
                 }
 
                 var session = await _context.RemoteSessions
@@ -239,30 +243,59 @@ namespace Server.Controllers
 
                 if (session == null)
                 {
-                    return NotFound(new { Message = "Session not found" });
+                    return NotFound(new { 
+                        success = false,
+                        message = "Session not found",
+                        code = "SESSION_NOT_FOUND"
+                    });
                 }
 
                 if (session.Status == "ended")
                 {
-                    return BadRequest(new { Message = "Session is already stopped" });
+                    return BadRequest(new { 
+                        success = false,
+                        message = "Session is already stopped",
+                        code = "SESSION_ALREADY_ENDED"
+                    });
                 }
 
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
-                if (user == null || (user.Id != session.HostUserId && user.Id != session.ClientUserId))
+                if (user == null)
                 {
-                    return Unauthorized(new { Message = "Not authorized to stop this session" });
+                    return NotFound(new { 
+                        success = false,
+                        message = "User not found",
+                        code = "USER_NOT_FOUND"
+                    });
+                }
+
+                if (user.Id != session.HostUserId)
+                {
+                    return StatusCode(403, new { 
+                        success = false,
+                        message = "Only the host can stop the session",
+                        code = "HOST_ONLY"
+                    });
                 }
 
                 session.Status = "ended";
                 session.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                return Ok(new { Message = "Session stopped successfully", SessionId = sessionId });
+                return Ok(new { 
+                    success = true,
+                    message = "Session stopped successfully",
+                    code = "SESSION_STOPPED"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error stopping session {sessionId}");
-                return StatusCode(500, new { Message = "An error occurred while stopping the session" });
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "An error occurred while stopping the session",
+                    code = "SERVER_ERROR"
+                });
             }
         }
 

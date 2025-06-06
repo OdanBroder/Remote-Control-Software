@@ -75,7 +75,11 @@ namespace Server.Controllers
             {
                 if (Request.ContentLength == 0)
                 {
-                    return BadRequest(new { success = false, message = "No data received" });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "No data received",
+                        code = "NO_DATA_RECEIVED"
+                    });
                 }
 
                 // Read the raw request body
@@ -85,16 +89,28 @@ namespace Server.Controllers
 
                 if (chunk.Length == 0)
                 {
-                    return BadRequest(new { success = false, message = "Empty chunk received" });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = "Empty chunk received",
+                        code = "EMPTY_CHUNK"
+                    });
                 }
                 
                 var success = await _fileTransferService.ProcessFileChunk(transferId, chunk, offset);
-                return Ok(new { success });
+                return Ok(new { 
+                    success = true,
+                    message = "Chunk processed successfully",
+                    code = "CHUNK_PROCESSED"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error processing file chunk for transfer {transferId}");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { 
+                    success = false, 
+                    message = ex.Message,
+                    code = "CHUNK_PROCESS_FAILED"
+                });
             }
         }
 
@@ -121,7 +137,11 @@ namespace Server.Controllers
                 var transfer = await _context.FileTransfers.FindAsync(transferId);
                 if (transfer == null)
                 {
-                    return NotFound(new { success = false, message = "File transfer not found" });
+                    return NotFound(new { 
+                        success = false, 
+                        message = "File transfer not found",
+                        code = "TRANSFER_NOT_FOUND"
+                    });
                 }
 
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
@@ -136,7 +156,11 @@ namespace Server.Controllers
                 var tempFilePath = Path.Combine(_fileTransferService.GetTempDirectory(), $"{transferId}_{transfer.FileName}");
                 if (!System.IO.File.Exists(tempFilePath))
                 {
-                    return NotFound(new { success = false, message = "File not found" });
+                    return NotFound(new { 
+                        success = false, 
+                        message = "File not found",
+                        code = "FILE_NOT_FOUND"
+                    });
                 }
 
                 var fileBytes = await System.IO.File.ReadAllBytesAsync(tempFilePath);
@@ -168,13 +192,18 @@ namespace Server.Controllers
                 var result = await _fileTransferService.StartTcpFileTransfer(sessionId, fileName, fileSize);
                 if (!result.success)
                 {
-                    return BadRequest(new { success = false, message = result.message });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = result.message,
+                        code = "TCP_TRANSFER_INIT_FAILED"
+                    });
                 }
 
                 return Ok(new
                 {
                     success = true,
                     message = "TCP file transfer initiated",
+                    code = "TCP_TRANSFER_INITIATED",
                     data = new
                     {
                         id = Guid.NewGuid().ToString(),
@@ -185,7 +214,11 @@ namespace Server.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error initiating TCP file transfer");
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { 
+                    success = false, 
+                    message = ex.Message,
+                    code = "TCP_TRANSFER_ERROR"
+                });
             }
         }
 
@@ -197,15 +230,28 @@ namespace Server.Controllers
                 var result = await _fileTransferService.ConnectToReceiver(sessionId);
                 if (!result.success)
                 {
-                    return BadRequest(new { success = false, message = result.message });
+                    return BadRequest(new { 
+                        success = false, 
+                        message = result.message,
+                        code = "RECEIVER_CONNECT_FAILED"
+                    });
                 }
 
-                return Ok(new { success = true, data = new { port = result.port } });
+                return Ok(new { 
+                    success = true,
+                    message = "Connected to receiver successfully",
+                    code = "RECEIVER_CONNECTED",
+                    data = new { port = result.port } 
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error connecting to receiver for session {sessionId}");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { 
+                    success = false, 
+                    message = ex.Message,
+                    code = "RECEIVER_CONNECT_ERROR"
+                });
             }
         }
     }
