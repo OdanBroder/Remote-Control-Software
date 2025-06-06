@@ -4,6 +4,8 @@ using System;
 using System.Windows.Forms;
 using Client.Services;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Drawing;
 
 namespace Client.Services
 {
@@ -95,14 +97,25 @@ namespace Client.Services
         {
             return async (s, e) =>
             {
+                // Get screen dimensions using Windows Forms
+                var screen = Screen.PrimaryScreen;
+                int screenWidth = screen.Bounds.Width;
+                int screenHeight = screen.Bounds.Height;
+
+                // Convert absolute coordinates to relative (0-100)
+                double relativeX = (e.X * 100.0) / screenWidth;
+                double relativeY = (e.Y * 100.0) / screenHeight;
+
                 var action = new InputAction
                 {
                     Type = "mouse",
                     Action = actionName,
                     Button = e.Button.ToString(),
-                    X = e.X,
-                    Y = e.Y
+                    X = (int)relativeX,
+                    Y = (int)relativeY,
+                    Modifiers = GetModifierKeys()
                 };
+
                 try
                 {
                     await _inputSender.SendInputAsync(action);
@@ -111,9 +124,17 @@ namespace Client.Services
                 {
                     Stop();
                     Console.WriteLine($"Error while sending mouse action: {ex.Message}");
-                } 
-                
+                }
             };
+        }
+
+        private string[] GetModifierKeys()
+        {
+            var modifiers = new List<string>();
+            if (Control.ModifierKeys.HasFlag(Keys.Control)) modifiers.Add("Control");
+            if (Control.ModifierKeys.HasFlag(Keys.Alt)) modifiers.Add("Alt");
+            if (Control.ModifierKeys.HasFlag(Keys.Shift)) modifiers.Add("Shift");
+            return modifiers.ToArray();
         }
 
         /// <summary>

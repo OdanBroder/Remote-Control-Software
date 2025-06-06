@@ -17,6 +17,8 @@ using Serilog;
 using ScreenCaptureI420A;
 using Client.Views;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using System.Drawing;
 
 namespace Client.Services
 {
@@ -586,13 +588,22 @@ namespace Client.Services
             try
             {
                 Log.Information($"Executing mouse action: {JsonConvert.SerializeObject(action)}");
-                //return;
+                
                 // Convert nullable int to int for mouse coordinates
                 int x = action.X ?? 0;
                 int y = action.Y ?? 0;
 
-                // Set cursor position
-                SetCursorPos(x, y);
+                // Get screen dimensions using Windows Forms
+                var screen = Screen.PrimaryScreen;
+                int screenWidth = screen.Bounds.Width;
+                int screenHeight = screen.Bounds.Height;
+
+                // Convert relative coordinates to absolute coordinates
+                int absoluteX = (int)((x / 100.0) * screenWidth);
+                int absoluteY = (int)((y / 100.0) * screenHeight);
+
+                // Set cursor position with absolute coordinates
+                SetCursorPos(absoluteX, absoluteY);
 
                 // Execute mouse action based on type
                 switch (action.Action.ToLower())
@@ -601,13 +612,13 @@ namespace Client.Services
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_RIGHTDOWN, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_MIDDLEDOWN, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                         }
                         break;
@@ -616,13 +627,13 @@ namespace Client.Services
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_RIGHTUP, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_RIGHTUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_MIDDLEUP, x, y, 0, 0);
+                                mouse_event(MOUSEEVENTF_MIDDLEUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
                                 break;
                         }
                         break;
