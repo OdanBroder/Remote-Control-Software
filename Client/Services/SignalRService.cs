@@ -16,11 +16,28 @@ using System.Security.Cryptography.X509Certificates;
 using Serilog;
 using ScreenCaptureI420A;
 using Client.Views;
+using System.Runtime.InteropServices;
 
 namespace Client.Services
 {
     public class SignalRService : IDisposable
     {
+        // Add Windows API declarations
+        [DllImport("user32.dll")]
+        private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, int dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetCursorPos(int x, int y);
+
+        // Mouse event constants
+        private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        private const uint MOUSEEVENTF_LEFTUP = 0x0004;
+        private const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+        private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+        private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+        private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+        private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+        
         private HubConnection _connection;
         private string _connectionId;
         private bool _isConnected;
@@ -191,17 +208,32 @@ namespace Client.Services
             {
                 try
                 {
-                    Log.Information("Received input action: {Action}", serializedAction);
+                    Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
                     var action = JsonConvert.DeserializeObject<InputAction>(serializedAction);
 
-                    if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
+                    if (action.Type.ToLower() == "mouse")
+                    {
+                        ExecuteMouseAction(action);
+                    }
+                    else if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
 
+                    Console.WriteLine($"[DEBUG] Parsed action details:\n" +
+                        $"Type: {action.Type}\n" +
+                        $"Action: {action.Action}\n" +
+                        $"Key: {action.Key ?? "N/A"}\n" +
+                        $"Modifiers: {JsonConvert.SerializeObject(action.Modifiers ?? new string[0])}\n" +
+                        $"X: {action.X ?? -1}\n" +
+                        $"Y: {action.Y ?? -1}\n" +
+                        $"Button: {action.Button ?? "N/A"}\n" +
+                        $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
+
                     await Task.Delay(100); // Small delay to ensure proper sequencing
+
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Error processing input");
+                    Console.WriteLine($"[ERROR] Error processing input: {ex.Message}");
                     await _connection.InvokeAsync("ReportInputError", new
                     {
                         error = ex.Message,
@@ -537,6 +569,74 @@ namespace Client.Services
             catch (Exception ex)
             {
                 Log.Error(ex, "Error stopping streaming");
+            }
+        }
+
+
+        public async Task SendInputActionAsync(string sessionId, string serializedAction)
+        {
+            if (_connection == null || _connection.State != HubConnectionState.Connected)
+            {
+                throw new InvalidOperationException("SignalR connection is not established");
+            }
+
+            await _connection.InvokeAsync("SendInputAction", sessionId, serializedAction);
+        }
+
+        private void ExecuteMouseAction(InputAction action)
+        {
+            try
+            {
+                Log.Information($"Executing mouse action: {JsonConvert.SerializeObject(action)}");
+                return;
+                // Convert nullable int to int for mouse coordinates
+                int x = action.X ?? 0;
+                int y = action.Y ?? 0;
+
+                // Set cursor position
+                SetCursorPos(x, y);
+
+                // Execute mouse action based on type
+                switch (action.Action.ToLower())
+                {
+                    case "mousedown":
+                        switch (action.Button?.ToLower())
+                        {
+                            case "left":
+                                mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
+                                break;
+                            case "right":
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN, x, y, 0, 0);
+                                break;
+                            case "middle":
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN, x, y, 0, 0);
+                                break;
+                        }
+                        break;
+
+                    case "mouseup":
+                        switch (action.Button?.ToLower())
+                        {
+                            case "left":
+                                mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+                                break;
+                            case "right":
+                                mouse_event(MOUSEEVENTF_RIGHTUP, x, y, 0, 0);
+                                break;
+                            case "middle":
+                                mouse_event(MOUSEEVENTF_MIDDLEUP, x, y, 0, 0);
+                                break;
+                        }
+                        break;
+
+                    case "mousemove":
+                        // Cursor position is already set above
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to execute mouse action: {ex.Message}");
             }
         }
 

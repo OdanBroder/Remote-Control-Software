@@ -14,13 +14,15 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="15">
-                            <ScrollViewer x:Name="PART_ContentHost" 
-                                        Margin="{TemplateBinding Padding}"
-                                        VerticalAlignment="Center"/>
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="15">
+                            <ScrollViewer
+                                x:Name="PART_ContentHost"
+                                Margin="{TemplateBinding Padding}"
+                                VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -128,16 +130,16 @@
                     <Run Text="Enter Remote Session ID:" />
                 </TextBlock>
 
-                <TextBox Grid.Column="1"
-                         FontFamily="Bold"
-                         MaxLength="36"
-                         VerticalAlignment="Center"
-                         Background="Transparent"
-                         FontWeight="Bold"
-                         BorderThickness="0"
-                         Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
-                         FontSize="14">
-                </TextBox>
+                <TextBox
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    FontFamily="Bold"
+                    FontSize="14"
+                    FontWeight="Bold"
+                    MaxLength="36"
+                    Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" />
 
                 <Button
                     Grid.Column="2"
@@ -146,8 +148,8 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Background="Transparent"
-                    Command="{Binding JoinSessionCommand}"
-                    BorderThickness="0">
+                    BorderThickness="0"
+                    Command="{Binding JoinSessionCommand}">
                     <fa:IconImage
                         Width="16"
                         Height="16"
@@ -226,7 +228,15 @@
             Margin="108,375,0,0"
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
-            Content="Disconnect" 
-            Command="{Binding DisconnectCommand}"/>
+            Command="{Binding DisconnectCommand}"
+            Content="Disconnect" />
+        <Button
+            Width="114"
+            Height="47"
+            Margin="230,375,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Command="{Binding LeaveSessionCommand}"
+            Content="Leave Session" />
     </Grid>
 </UserControl>
