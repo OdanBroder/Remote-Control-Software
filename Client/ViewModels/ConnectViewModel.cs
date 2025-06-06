@@ -188,7 +188,10 @@ namespace Client.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(JoinSessionId))
                 {
-                    ErrorMessage = "Please enter a valid session ID.";
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Please enter a session ID.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
                     return;
                 }
                 JoinSessionId = JoinSessionId.Trim();
@@ -207,11 +210,11 @@ namespace Client.ViewModels
                             await _sessionService.LeaveSessionAsync(session.SessionId);
                         }
                     }
-                    else if (response.Code != "NO_SESSIONS")
-                    {
-                        ErrorMessage = response.Message;
-                        return;
-                    }
+                }
+                else if (response.Code != "NO_SESSIONS")
+                {
+                    ErrorMessage = response.Message;
+                    return;
                 }
 
             }

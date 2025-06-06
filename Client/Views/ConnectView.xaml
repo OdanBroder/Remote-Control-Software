@@ -130,11 +130,14 @@
 
                 <TextBox Grid.Column="1"
                          FontFamily="Bold"
+                         MaxLength="36"
                          Background="Transparent"
+                         FontWeight="Bold"
                          BorderThickness="0"
+                         Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
                          FontSize="14">
-                    
                 </TextBox>
+
                 <Button
                     Grid.Column="2"
                     Width="18"
@@ -142,8 +145,8 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Background="Transparent"
-                    BorderThickness="0"
-                    ToolTip="Reconnect">
+                    Command="{Binding JoinSessionCommand}"
+                    BorderThickness="0">
                     <fa:IconImage
                         Width="16"
                         Height="16"

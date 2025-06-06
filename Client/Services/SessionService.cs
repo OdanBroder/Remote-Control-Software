@@ -143,11 +143,6 @@ namespace Client.Services
                 throw new InvalidOperationException("Not logged in");
             }
 
-            if (_httpClient.DefaultRequestHeaders.Authorization == null)
-            {
-                SetAuthToken(token);
-            }
-
             try
             {
                 var response = await _httpClient.PostAsync($"{baseUrl}/session/join/{sessionId}", null);
@@ -163,6 +158,7 @@ namespace Client.Services
                 
                 if (!result.Success)
                 {
+                    MessageBox.Show($"{result.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     throw new HttpRequestException($"Error while joining session: {responseString}");
                 }
 
