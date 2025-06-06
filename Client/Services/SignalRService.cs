@@ -141,7 +141,7 @@ namespace Client.Services
             }
         }
 
-        public async Task DisconnectAsync()
+        public async Task DisconnectToHubAsync()
         {
             if (_connection != null)
             {

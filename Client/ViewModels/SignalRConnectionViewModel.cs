@@ -8,7 +8,7 @@ using Client.Models;
 using Microsoft.MixedReality.WebRTC;
 namespace Client.ViewModels
 {
-    public class SignalRConnectionViewModel: INotifyPropertyChanged
+    public class SignalRConnectionViewModel : INotifyPropertyChanged
     {
         private HubConnection _connection;
         private string _connectionId;
@@ -84,6 +84,17 @@ namespace Client.ViewModels
             {
                 IsConnected = false;
                 ConnectionStatus = $"Connection failed: {ex.Message}";
+            }
+        }
+
+        public async Task DisconnectToHubAsync()
+        {
+            if (_connection != null)
+            {
+                await _connection.StopAsync();
+                await _connection.DisposeAsync();
+                IsConnected = false;
+                ConnectionStatus = "Disconnected";
             }
         }
 
@@ -201,18 +212,6 @@ namespace Client.ViewModels
                 ConnectionStatus = "Disconnected";
                 return Task.CompletedTask;
             };
-        }
-
-
-        public async Task DisconnectToHubAsync()
-        {
-            if (_connection != null)
-            {
-                await _connection.StopAsync();
-                await _connection.DisposeAsync();
-                IsConnected = false;
-                ConnectionStatus = "Disconnected";
-            }
         }
     }
 }

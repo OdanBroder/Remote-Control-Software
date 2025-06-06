@@ -127,7 +127,6 @@
     <Compile Include="Services\VideoProcessor.cs" />
     <Compile Include="Services\WebRTCService.cs" />
     <Compile Include="ViewModels\ConnectViewModel.cs" />
-    <Compile Include="ViewModels\JoinSessionViewModel.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\RegisterViewModel.cs" />
     <Compile Include="Views\ConnectView.xaml.cs">

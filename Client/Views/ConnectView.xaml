@@ -18,7 +18,7 @@
         </Grid.Background>
 
         <Border
-            Width="450"
+            Width="460"
             Height="41"
             Margin="0,43,0,0"
             Padding="10"
@@ -43,7 +43,7 @@
                     FontSize="14"
                     FontWeight="Bold"
                     TextWrapping="Wrap">
-                    <Run Text="Your SessionId: " />
+                    <Run Text="Your Session ID: " />
                     <Run Text="{Binding Session}" />
                 </TextBlock>
 
@@ -117,11 +117,16 @@
             Content="Join Session"
             RenderTransformOrigin="0.847,0.556" />
         <TextBox
-            Width="404"
-            Height="26"
-            Margin="0,116,0,0"
+            Width="495"
+            Height="41"
+            Margin="0,90,0,0"
+            Padding="10"
             HorizontalAlignment="Center"
             VerticalAlignment="Top"
+            Background="WhiteSmoke"
+            BorderBrush="Gray"
+            BorderThickness="2"
+            CornerRadius="15"
             FontSize="14"
             FontWeight="Bold"
             Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"

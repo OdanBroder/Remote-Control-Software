@@ -10,6 +10,7 @@ using Client.Helpers;
 using Client.Models;
 using Newtonsoft.Json;
 using System.ComponentModel;
+using System.Windows;
 
 namespace Client.Services
 {
@@ -192,7 +193,7 @@ namespace Client.Services
                 }
 
                 Console.WriteLine($"[Debug]Response when leaving: {responseString}");
-                await _signalRService.DisconnectAsync();
+                await _signalRService.DisconnectToHubAsync();
                 return result;
             }
             catch (Exception ex)
@@ -259,7 +260,7 @@ namespace Client.Services
             }
         }
 
-        public async Task<ApiResponse> DisconnectFromSessionAsync(string sessionId, string connectionId)
+        public async Task<ApiResponse> DisconnectToSessionAsync(string sessionId, string connectionId)
         {
             try
             {
@@ -275,6 +276,8 @@ namespace Client.Services
                 {
                     Console.WriteLine($"Error disconnecting from session: {responseString}");
                 }
+
+                await _signalRService.DisconnectToHubAsync();
                 
                 return sessionResponse;
             }
