@@ -117,7 +117,7 @@
     <Compile Include="Models\SessionResponse.cs" />
     <Compile Include="Models\UserAccountModel.cs" />
     <Compile Include="Models\UserModel.cs" />
-    <Compile Include="Models\WebRtcMessage.cs" />
+    <Compile Include="Models\WebRTCSignal.cs" />
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\InputMonitor.cs" />
     <Compile Include="Services\SendInputServices.cs" />

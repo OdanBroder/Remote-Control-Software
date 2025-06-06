@@ -14,10 +14,12 @@ using System.Data.Common;
 using Microsoft.AspNetCore.Http.Connections;
 using System.Security.Cryptography.X509Certificates;
 using Serilog;
+using ScreenCaptureI420A;
+using Client.Views;
 
 namespace Client.Services
 {
-    public class SignalRService
+    public class SignalRService : IDisposable
     {
         private HubConnection _connection;
         private string _connectionId;
@@ -30,6 +32,14 @@ namespace Client.Services
         private bool _connectionEstablished = false;
         private string _publicKey;
         private string _privateKey;
+        private bool _isStreaming;
+        private bool _isDisposed;
+        private ScreenCaptureDXGI _capture;
+        private LocalVideoTrack _localVideoTrack;
+        private VideoProcessor _videoProcessor;
+        private ScreenCaptureView _streamingWindow;
+        private PropertyChangedEventHandler _signalREventHandler;
+        private Action<RemoteVideoTrack> _remoteTrackHandler;
 
         public string ConnectionId
         {
@@ -49,7 +59,11 @@ namespace Client.Services
             set { _connectionStatus = value; OnPropertyChanged(); }
         }
 
+        public DateTime? ConnectedSince { get; private set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
+        public event Action<RemoteVideoTrack> OnVideoTrackAdded;
+
         private void OnPropertyChanged([CallerMemberName] string name = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -58,6 +72,9 @@ namespace Client.Services
             _token = TokenStorage.LoadToken();
             _sessionId = SessionStorage.LoadSession();
             ConnectionStatus = "Disconnected";
+            _videoProcessor = new VideoProcessor();
+            _streamingWindow = new ScreenCaptureView();
+            _streamingWindow.Show();
         }
 
         public async Task ConnectToHubAsync(string sessionId)
@@ -76,9 +93,8 @@ namespace Client.Services
                     {
                         options.HttpMessageHandlerFactory = _ => handler;
                         options.AccessTokenProvider = () => Task.FromResult(_token);
-                        options.Transports = HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling; ;
+                        options.Transports = HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling;
                         options.SkipNegotiation = false;
-
                     })
                     .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(20) })
                     .ConfigureLogging(logging =>
@@ -101,12 +117,11 @@ namespace Client.Services
                 {
                     if (_connectionEstablished && _connection.State == HubConnectionState.Connected)
                     {
-                        Console.WriteLine("[DEBUG] Connection is fully established and synchronized");
+                        Log.Information("Connection is fully established and synchronized");
                         break;
                     }
 
-                    Console.WriteLine($"[DEBUG] Waiting for connection to be fully established... Attempt {retryCount + 1}/{maxRetries}");
-                    Console.WriteLine($"[DEBUG] Current state: {_connection.State}, Connection established: {_connectionEstablished}");
+                    Log.Information("Waiting for connection to be fully established... Attempt {Attempt}/{MaxRetries}", retryCount + 1, maxRetries);
                     await Task.Delay(checkInterval);
                     retryCount++;
                 }
@@ -116,27 +131,16 @@ namespace Client.Services
                     throw new Exception($"Failed to establish connection after {maxRetries} attempts. Current state: {_connection.State}, Connection established: {_connectionEstablished}");
                 }
 
-                // Send a test message to verify connection
-                var testAction = new
-                {
-                    type = "test",
-                    action = "test",
-                    message = "Testing connection..."
-                };
-
-                Console.WriteLine("[DEBUG] Sending test message...");
-                await _connection.InvokeAsync("SendInputAction", sessionId, JsonConvert.SerializeObject(testAction));
-                Console.WriteLine("[DEBUG] Test message sent successfully");
-
                 IsConnected = true;
                 ConnectionStatus = "Connected";
                 ConnectionId = _connection.ConnectionId;
+                ConnectedSince = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
                 IsConnected = false;
                 ConnectionStatus = $"Connection failed: {ex.Message}";
-                Console.WriteLine($"[ERROR] Hub connection error: {ex}");
+                Log.Error(ex, "Hub connection error");
                 throw;
             }
         }
@@ -149,6 +153,7 @@ namespace Client.Services
                 await _connection.DisposeAsync();
                 IsConnected = false;
                 ConnectionStatus = "Disconnected";
+                ConnectedSince = null;
             }
         }
 
@@ -156,56 +161,46 @@ namespace Client.Services
         {
             _connection.On<string>("ConnectionEstablished", (connectionId) =>
             {
-                Console.WriteLine($"[DEBUG] Connection established with ID: {connectionId}");
+                Log.Information("Connection established with ID: {ConnectionId}", connectionId);
                 _connectionEstablished = true;
                 ConnectionId = connectionId;
                 ConnectionStorage.SaveConnectionId(ConnectionId);
                 IsConnected = true;
                 ConnectionStatus = "Connected";
+                ConnectedSince = DateTime.UtcNow;
             });
 
             _connection.On<string>("Error", (message) =>
             {
-                Console.WriteLine($"[ERROR] Received error from server: {message}");
+                Log.Error("Received error from server: {Message}", message);
                 ConnectionStatus = $"Error: {message}";
             });
 
             _connection.On<string>("PeerConnected", (peerId) =>
             {
-                Console.WriteLine($"[DEBUG] Peer connected: {peerId}");
+                Log.Information("Peer connected: {PeerId}", peerId);
             });
 
             _connection.On<string>("PeerDisconnected", (peerId) =>
             {
-                Console.WriteLine($"[DEBUG] Peer disconnected: {peerId}");
+                Log.Information("Peer disconnected: {PeerId}", peerId);
             });
 
             _connection.On<string>("ReceiveInput", async (serializedAction) =>
             {
                 try
                 {
-                    Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
+                    Log.Information("Received input action: {Action}", serializedAction);
                     var action = JsonConvert.DeserializeObject<InputAction>(serializedAction);
 
                     if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
 
-                    Console.WriteLine($"[DEBUG] Parsed action details:\n" +
-                        $"Type: {action.Type}\n" +
-                        $"Action: {action.Action}\n" +
-                        $"Key: {action.Key ?? "N/A"}\n" +
-                        $"Modifiers: {JsonConvert.SerializeObject(action.Modifiers ?? new string[0])}\n" +
-                        $"X: {action.X ?? -1}\n" +
-                        $"Y: {action.Y ?? -1}\n" +
-                        $"Button: {action.Button ?? "N/A"}\n" +
-                        $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
-
                     await Task.Delay(100); // Small delay to ensure proper sequencing
-
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Error processing input: {ex.Message}");
+                    Log.Error(ex, "Error processing input");
                     await _connection.InvokeAsync("ReportInputError", new
                     {
                         error = ex.Message,
@@ -216,80 +211,16 @@ namespace Client.Services
 
             _connection.On<string>("ScreenDataUpdated", (imageBase64) =>
             {
-                Console.WriteLine($"[DEBUG] Received screen update:\n" +
-                    $"Data length: {imageBase64.Length}\n" +
-                    $"First 100 chars: {imageBase64.Substring(0, Math.Min(100, imageBase64.Length))}...");
+                Log.Information("Received screen update: {Length} bytes", imageBase64.Length);
             });
 
-            _connection.On<string>("TestMessage", (message) =>
-            {
-                Console.WriteLine($"[DEBUG] Received test message:\n" +
-                    $"Message: {message}\n" +
-                    $"Type: {message.GetType()}\n" +
-                    $"Timestamp: {DateTime.UtcNow:O}");
-            });
-
-            _connection.On<string>("Echo", (message) =>
-            {
-                Console.WriteLine($"[DEBUG] Received echo:\n" +
-                    $"Message: {message}\n" +
-                    $"Type: {message.GetType()}\n" +
-                    $"Timestamp: {DateTime.UtcNow:O}");
-            });
-            _connection.On<string, string>("ReceiveKeyPair", (publicKey, privateKey) =>
-            {
-                Console.WriteLine($"[DEBUG] Received key pair:");
-                Console.WriteLine($"Public Key: {publicKey}");
-                Console.WriteLine($"Private Key: {privateKey}");
-
-                // Store them if needed
-                _publicKey = publicKey;
-                _privateKey = privateKey;
-            });
-
-            _connection.Reconnecting += error =>
-            {
-                Console.WriteLine($"[DEBUG] Connection lost. Reconnecting...\n" +
-                    $"Error: {error}\n" +
-                    $"State: {_connection.State}\n" +
-                    $"Timestamp: {DateTime.UtcNow:O}");
-                IsConnected = false;
-                ConnectionStatus = "Reconnecting...";
-                return Task.CompletedTask;
-            };
-
-            _connection.Reconnected += connectionId =>
-            {
-                Console.WriteLine($"[DEBUG] Reconnected successfully:\n" +
-                    $"Connection ID: {connectionId}\n" +
-                    $"State: {_connection.State}\n" +
-                    $"Timestamp: {DateTime.UtcNow:O}");
-                IsConnected = true;
-                ConnectionStatus = "Reconnected";
-                ConnectionId = connectionId;
-                return Task.CompletedTask;
-            };
-
-            _connection.Closed += error =>
-            {
-                Console.WriteLine($"[DEBUG] Connection closed:\n" +
-                    $"Error: {error}\n" +
-                    $"State: {_connection.State}\n" +
-                    $"Timestamp: {DateTime.UtcNow:O}");
-                IsConnected = false;
-                ConnectionStatus = "Disconnected";
-                return Task.CompletedTask;
-            };
-
-            // WebRTC signal handlers
             _connection.On<dynamic>("ReceiveWebRTCSignal", async payload =>
             {
                 try
                 {
                     var signalData = JsonConvert.DeserializeObject<WebRTCSignal>(JsonConvert.SerializeObject(payload));
-                    Log.Information($"Received WebRTC {signalData.SignalType} signal from {signalData.ConnectionId}");
+                    Log.Information("Received WebRTC {SignalType} signal from {ConnectionId}", signalData.SignalType, signalData.ConnectionId);
 
-                    // Handle WebRTC signaling
                     switch (signalData.SignalType.ToLower())
                     {
                         case "offer":
@@ -314,79 +245,78 @@ namespace Client.Services
                     Log.Error(ex, "Error processing WebRTC signal");
                 }
             });
+
+            _connection.Reconnecting += error =>
+            {
+                Log.Information("Connection lost. Reconnecting... Error: {Error}", error);
+                IsConnected = false;
+                ConnectionStatus = "Reconnecting...";
+                return Task.CompletedTask;
+            };
+
+            _connection.Reconnected += connectionId =>
+            {
+                Log.Information("Reconnected successfully. Connection ID: {ConnectionId}", connectionId);
+                IsConnected = true;
+                ConnectionStatus = "Reconnected";
+                ConnectionId = connectionId;
+                return Task.CompletedTask;
+            };
+
+            _connection.Closed += error =>
+            {
+                Log.Information("Connection closed. Error: {Error}", error);
+                IsConnected = false;
+                ConnectionStatus = "Disconnected";
+                ConnectedSince = null;
+                return Task.CompletedTask;
+            };
         }
 
-        public async Task HandleIceCandidateAsync(string connectionId, string candidate, string sdpMid, int sdpMlineIndex)
+        public async Task<ApiResponse> StartStreaming(bool isStreamer = true)
         {
-            var pc = await GetOrCreatePeerAsync(connectionId);
-            if (pc == null)
-            {
-                Log.Information("[Error] PeerConnection not found...");
-                Console.WriteLine($"[{connectionId}] Failed to get or create PeerConnection.");
-                return;
-            }
-
             try
             {
-                Console.WriteLine($"[{connectionId}] Adding ICE candidate...");
-                pc.AddIceCandidate(new IceCandidate
+                if (_isStreaming)
                 {
-                    Content = candidate,
-                    SdpMid = sdpMid,
-                    SdpMlineIndex = sdpMlineIndex
-                });
-
-                Console.WriteLine($"[{connectionId}] ICE candidate added successfully.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, $"[{connectionId}] Error adding ICE candidate.");
-            }
-
-            await Task.CompletedTask;
-        }
-        public async Task HandleSdpAsync(string connectionId, string sdp, string type)
-        {
-            var pc = await GetOrCreatePeerAsync(connectionId);
-            if (pc == null)
-            {
-                Console.WriteLine($"[{connectionId}] Failed to get or create PeerConnection.");
-                return;
-            }
-
-            Console.WriteLine($"[{connectionId}] Received SDP of type: {type}");
-
-            try
-            {
-                var sdpMessage = new SdpMessage
-                {
-                    Type = type.ToLower() == "offer" ? SdpMessageType.Offer : SdpMessageType.Answer,
-                    Content = sdp
-                };
-
-                await pc.SetRemoteDescriptionAsync(sdpMessage);
-
-                if (type.ToLower() == "offer")
-                {
-                    Console.WriteLine($"[{connectionId}] Creating and sending SDP answer...");
-                    pc.CreateAnswer();
+                    return new ApiResponse { Success = false, Message = "Already streaming" };
                 }
 
-                Console.WriteLine($"[{connectionId}] Handled SDP successfully.");
+                if (!IsConnected)
+                {
+                    Log.Error("SignalR is not connected");
+                    return new ApiResponse { Success = false, Message = "SignalR is not connected" };
+                }
+
+                if (_peerConnection != null)
+                {
+                    Log.Warning("PeerConnection already exists");
+                    return new ApiResponse { Success = false, Message = "PeerConnection already initialized" };
+                }
+
+                await InitializePeerConnection(isStreamer);
+
+                if (isStreamer)
+                {
+                    SetupStreaming();
+                }
+                else
+                {
+                    SetupViewing();
+                }
+
+                _isStreaming = true;
+                return new ApiResponse { Success = true, Message = "Streaming started successfully" };
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message, $"[{connectionId}] Error handling SDP message.");
+                Log.Error(ex, "Failed to start streaming");
+                return new ApiResponse { Success = false, Message = $"Failed to start streaming: {ex.Message}" };
             }
         }
 
-        private async Task<PeerConnection> GetOrCreatePeerAsync(string connectionId)
+        private async Task InitializePeerConnection(bool isStreamer)
         {
-            if (_peerConnection != null)
-            {
-                return _peerConnection;
-            }
-
             _peerConnection = new PeerConnection();
             var config = new PeerConnectionConfiguration
             {
@@ -396,55 +326,166 @@ namespace Client.Services
                 }
             };
 
+            await _peerConnection.InitializeAsync(config);
+
+            _peerConnection.LocalSdpReadytoSend += async (SdpMessage msg) =>
+            {
+                var signal = new WebRTCSignal
+                {
+                    SessionIdentifier = _sessionId,
+                    ConnectionId = ConnectionId,
+                    SignalType = msg.Type.ToString().ToLower(),
+                    SignalData = msg.Content
+                };
+
+                await SendWebRTCSignal(signal);
+            };
+
+            _peerConnection.IceCandidateReadytoSend += async (IceCandidate candidate) =>
+            {
+                var signal = new WebRTCSignal
+                {
+                    SessionIdentifier = _sessionId,
+                    ConnectionId = ConnectionId,
+                    SignalType = "ice-candidate",
+                    SignalData = new
+                    {
+                        candidate = candidate.Content,
+                        sdpMid = candidate.SdpMid,
+                        sdpMLineIndex = candidate.SdpMlineIndex
+                    }
+                };
+
+                await SendWebRTCSignal(signal);
+            };
+            _peerConnection.VideoTrackAdded += track =>
+            {
+                Log.Information("Video track added: {Name}", track.Name);
+
+                track.I420AVideoFrameReady += frame =>
+                {
+                    Log.Information("Y data size: {YSize}, U data size: {USize}, V data size: {VSize}, A data size: {ASize}",
+                        frame.dataY, frame.dataU, frame.dataV, frame.dataA);
+
+                    //HandleVideoTrackAdded(track); // Gọi hàm xử lý frame
+                };
+            };
+        }
+
+        private void SetupStreaming()
+        {
+            if (_connection == null || _connection.State != HubConnectionState.Connected)
+            {
+                Log.Warning("Connection SignalR should be run first...");
+                return;
+            }
             try
             {
-                _sessionId = SessionStorage.LoadSession();
-                await _peerConnection.InitializeAsync(config);
+                _capture = new ScreenCaptureDXGI();
+                _webrtcClient = new WebRTCService();
 
-                _peerConnection.LocalSdpReadytoSend += async (SdpMessage msg) =>
+                _localVideoTrack = _webrtcClient.CreateLocalVideoTrack();
+                _capture.OnFrameCaptured += _webrtcClient.OnI420AFrame;
+
+                var transceiverInit = new TransceiverInitSettings
                 {
-                    await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, JsonConvert.SerializeObject(new
-                    {
-                        Type = msg.Type.ToString().ToLower(),
-                        Sdp = msg.Content,
-                        FromConnectionId = connectionId
-                    }));
+                    Name = "video",
+                    StreamIDs = new List<string> { "stream1" }
                 };
 
-                _peerConnection.IceCandidateReadytoSend += async (IceCandidate candidate) =>
+                var videoTransceiver = _peerConnection.AddTransceiver(MediaKind.Video, transceiverInit);
+                videoTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
+                videoTransceiver.LocalVideoTrack = _localVideoTrack;
+
+                if (videoTransceiver.LocalVideoTrack == null)
                 {
-                    await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, JsonConvert.SerializeObject(new
-                    {
-                        Type = "ice-candidate",
-                        Candidate = candidate.Content,
-                        SdpMid = candidate.SdpMid,
-                        SdpMLineIndex = candidate.SdpMlineIndex,
-                        FromConnectionId = connectionId
-                    }));
-                };
+                    throw new InvalidOperationException("Failed to add video track");
+                }
 
-                // Handle incoming video tracks
-                _peerConnection.VideoTrackAdded += track =>
+                Log.Information("Creating offer...");
+                if (!_peerConnection.CreateOffer())
                 {
-                    Log.Information($"Video track added: {track.Name}");
-                    Console.WriteLine($"Video track added: {track.Name}");
+                    throw new InvalidOperationException("Offer creation failed");
+                }
 
-                    // Notify any subscribers about the new video track
-                    OnVideoTrackAdded?.Invoke(track);
-                };
-
-                return _peerConnection;
+                _capture.Start();
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                Log.Error(ex, "Error initializing PeerConnection");
-                _peerConnection = null;
-                return null;
+                Log.Error($"Exception when start streaming {ex.Message}");
             }
         }
 
-        // Event for video track addition
-        public event Action<RemoteVideoTrack> OnVideoTrackAdded;
+        private void SetupViewing()
+        {
+            if (_connection == null || _connection.State != HubConnectionState.Connected)
+            {
+                Log.Warning("Connection SignalR should be run first...");
+                return;
+            }
+            var transceiverInit = new TransceiverInitSettings
+            {
+                Name = "video",
+                StreamIDs = new List<string> { "stream1" }
+            };
+
+            var videoTransceiver = _peerConnection.AddTransceiver(MediaKind.Video, transceiverInit);
+            videoTransceiver.DesiredDirection = Transceiver.Direction.ReceiveOnly;
+        }
+
+        public void HandleIceCandidateAsync(string connectionId, string candidate, string sdpMid, int sdpMlineIndex)
+        {
+            if (_peerConnection == null)
+            {
+                Log.Error("PeerConnection not found");
+                return;
+            }
+            try
+            {
+                Log.Information("Adding ICE candidate for {ConnectionId}", connectionId);
+                _peerConnection.AddIceCandidate(new IceCandidate
+                {
+                    Content = candidate,
+                    SdpMid = sdpMid,
+                    SdpMlineIndex = sdpMlineIndex
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error adding ICE candidate for {ConnectionId}", connectionId);
+            }
+        }
+
+        public async Task HandleSdpAsync(string connectionId, string sdp, string type)
+        {
+            if (_peerConnection == null)
+            {
+                Log.Error("PeerConnection not found");
+                return;
+            }
+
+            try
+            {
+                Log.Information("Handling SDP of type {Type} for {ConnectionId}", type, connectionId);
+                var sdpMessage = new SdpMessage
+                {
+                    Type = type.ToLower() == "offer" ? SdpMessageType.Offer : SdpMessageType.Answer,
+                    Content = sdp
+                };
+
+                await _peerConnection.SetRemoteDescriptionAsync(sdpMessage);
+
+                if (type.ToLower() == "offer")
+                {
+                    Log.Information("Creating answer for {ConnectionId}", connectionId);
+                    _peerConnection.CreateAnswer();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error handling SDP message for {ConnectionId}", connectionId);
+            }
+        }
 
         public async Task SendWebRTCSignal(WebRTCSignal signal)
         {
@@ -456,7 +497,6 @@ namespace Client.Services
 
             try
             {
-                _sessionId = SessionStorage.LoadSession();
                 Log.Information("Sending WebRTC signal - Type: {SignalType}, SessionId: {SessionId}", signal.SignalType, _sessionId);
                 await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, signal);
                 Log.Information("WebRTC signal sent successfully - Type: {SignalType}", signal.SignalType);
@@ -466,6 +506,62 @@ namespace Client.Services
                 Log.Error(ex, "Failed to send WebRTC signal - Type: {SignalType}", signal.SignalType);
                 throw;
             }
+        }
+
+        public void StopStreaming()
+        {
+            try
+            {
+                if (_capture != null)
+                {
+                    _capture.Stop();
+                }
+
+                if (_localVideoTrack != null)
+                {
+                    _localVideoTrack.Dispose();
+                    _localVideoTrack = null;
+                }
+
+                if (_peerConnection != null)
+                {
+                    _peerConnection.Close();
+                    _peerConnection.Dispose();
+                    _peerConnection = null;
+                }
+
+                _isStreaming = false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error stopping streaming");
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_isDisposed)
+            {
+                if (disposing)
+                {
+                    StopStreaming();
+                    _webrtcClient?.Dispose();
+                    _capture?.Dispose();
+                    _connection?.DisposeAsync();
+                }
+                _isDisposed = true;
+            }
+        }
+
+        ~SignalRService()
+        {
+            Dispose(false);
         }
     }
 }

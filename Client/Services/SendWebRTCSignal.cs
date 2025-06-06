@@ -17,14 +17,6 @@ using Client.Views;
 
 namespace Client.Services
 {
-    public class WebRTCSignal
-    {
-        public string SessionIdentifier { get; set; }
-        public string ConnectionId { get; set; }
-        public string SignalType { get; set; }  // "offer", "answer", "ice-candidate"
-        public object SignalData { get; set; }
-    }
-
     public class SendWebRTCSignal : IDisposable
     {
         private readonly HttpClient _httpClient;
