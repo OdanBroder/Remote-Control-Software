@@ -314,6 +314,18 @@ namespace Server.Hubs
                 transfer.Status = "transferring";
                 await _context.SaveChangesAsync();
 
+                // Notify both parties about the accepted transfer
+                if (transfer.Session.HostConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.HostConnectionId)
+                        .SendAsync("FileTransferAccepted", transferId);
+                }
+
+                if (transfer.Session.ClientConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.ClientConnectionId)
+                        .SendAsync("FileTransferAccepted", transferId);
+                }
             }
             catch (Exception ex)
             {
@@ -458,6 +470,70 @@ namespace Server.Hubs
             {
                 _logger.LogError(ex, "Error in Echo method");
                 throw;
+            }
+        }
+
+        public async Task NotifyFileTransferProgress(string sessionId, int progress)
+        {
+            try
+            {
+                var session = await _context.RemoteSessions
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
+
+                if (session == null)
+                {
+                    _logger.LogWarning($"Session {sessionId} not found for file transfer progress");
+                    return;
+                }
+
+                // Notify both parties about progress
+                if (session.HostConnectionId != null)
+                {
+                    await Clients.Client(session.HostConnectionId)
+                        .SendAsync("FileTransferProgress", sessionId, progress);
+                }
+
+                if (session.ClientConnectionId != null)
+                {
+                    await Clients.Client(session.ClientConnectionId)
+                        .SendAsync("FileTransferProgress", sessionId, progress);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error notifying file transfer progress for session {sessionId}");
+            }
+        }
+
+        public async Task NotifyFileTransferCompleted(string sessionId)
+        {
+            try
+            {
+                var session = await _context.RemoteSessions
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId);
+
+                if (session == null)
+                {
+                    _logger.LogWarning($"Session {sessionId} not found for file transfer completion");
+                    return;
+                }
+
+                // Notify both parties about completion
+                if (session.HostConnectionId != null)
+                {
+                    await Clients.Client(session.HostConnectionId)
+                        .SendAsync("FileTransferCompleted", sessionId);
+                }
+
+                if (session.ClientConnectionId != null)
+                {
+                    await Clients.Client(session.ClientConnectionId)
+                        .SendAsync("FileTransferCompleted", sessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error notifying file transfer completion for session {sessionId}");
             }
         }
     }

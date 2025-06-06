@@ -156,5 +156,57 @@ namespace Server.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        [HttpPost("tcp/initiate")]
+        public async Task<IActionResult> InitiateTcpFileTransfer(
+            [FromQuery] string sessionId,
+            [FromQuery] string fileName,
+            [FromQuery] long fileSize)
+        {
+            try
+            {
+                var result = await _fileTransferService.StartTcpFileTransfer(sessionId, fileName, fileSize);
+                if (!result.success)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "TCP file transfer initiated",
+                    data = new
+                    {
+                        id = Guid.NewGuid().ToString(),
+                        port = result.port
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error initiating TCP file transfer");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("tcp/connect")]
+        public async Task<IActionResult> ConnectToReceiver([FromQuery] string sessionId)
+        {
+            try
+            {
+                var result = await _fileTransferService.ConnectToReceiver(sessionId);
+                if (!result.success)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+
+                return Ok(new { success = true, data = new { port = result.port } });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error connecting to receiver for session {sessionId}");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 } 

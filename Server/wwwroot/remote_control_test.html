@@ -229,9 +229,26 @@
         <div class="section">
             <h3>File Transfer</h3>
             <div class="file-transfer-controls">
-                <input type="file" id="fileInput" style="display: none;">
-                <button onclick="document.getElementById('fileInput').click()">Select File</button>
-                <button onclick="startFileTransfer()">Start Transfer</button>
+                <div class="mb-3">
+                    <label for="fileInput" class="form-label">Select File:</label>
+                    <input type="file" class="form-control" id="fileInput">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Transfer Method:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="transferMethod" id="apiTransfer" value="api" checked>
+                        <label class="form-check-label" for="apiTransfer">
+                            API Transfer
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="transferMethod" id="tcpTransfer" value="tcp">
+                        <label class="form-check-label" for="tcpTransfer">
+                            TCP Transfer
+                        </label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="startFileTransfer()">Start Transfer</button>
                 <button onclick="cancelFileTransfer()">Cancel Transfer</button>
                 <button id="downloadButton" onclick="downloadCompletedFile()" style="display: none;">Download File</button>
             </div>
@@ -1953,122 +1970,117 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        async function startFileTransfer() {
-            if (!currentFile) {
-                displayResponse('fileTransferStatus', {
-                    success: false,
-                    message: 'Please select a file first',
-                    code: 'NO_FILE_SELECTED'
-                }, true);
-                return;
+        async function startTcpFileTransfer(file, sessionId) {
+            if (!file) {
+                throw new Error('No file selected');
             }
 
-            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
-                displayResponse('fileTransferStatus', {
-                    success: false,
-                    message: 'SignalR connection not established',
-                    code: 'NO_CONNECTION'
-                }, true);
-                return;
+            // First, initiate the TCP transfer
+            const initiateResponse = await fetch(`/api/filetransfer/tcp/initiate?sessionId=${sessionId}&fileName=${encodeURIComponent(file.name)}&fileSize=${file.size}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!initiateResponse.ok) {
+                throw new Error(`Failed to initiate TCP transfer: ${initiateResponse.status}`);
             }
 
-            const sessionId = document.getElementById('sessionId').value;
-            if (!sessionId) {
-                displayResponse('fileTransferStatus', {
-                    success: false,
-                    message: 'Please enter a session ID',
-                    code: 'NO_SESSION_ID'
-                }, true);
-                return;
+            const initiateResult = await initiateResponse.json();
+            if (!initiateResult.success) {
+                throw new Error(initiateResult.message);
             }
 
-            try {
-                // Initiate file transfer
-                const response = await fetch(`${API_BASE_URL}/api/filetransfer/initiate?sessionId=${sessionId}&fileName=${encodeURIComponent(currentFile.name)}&fileSize=${currentFile.size}`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+            // Create WebSocket connection to send file
+            const ws = new WebSocket(`ws://${window.location.hostname}:${initiateResult.data.port}`);
+
+            return new Promise((resolve, reject) => {
+                ws.onopen = () => {
+                    console.log('WebSocket connection established as sender');
+                    sendFileInChunks(ws, file)
+                        .then(() => {
+                            console.log('File transfer completed');
+                            ws.close();
+                            resolve();
+                        })
+                        .catch(error => {
+                            ws.close();
+                            reject(error);
+                        });
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket connection error:', error);
+                    ws.close();
+                    reject(new Error('WebSocket connection failed'));
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket connection closed');
+                };
+            });
+        }
+
+        async function sendFileInChunks(ws, file) {
+            if (!file) {
+                throw new Error('No file selected');
+            }
+
+            const chunkSize = 8192; // 8KB chunks
+            let offset = 0;
+
+            return new Promise((resolve, reject) => {
+                function sendNextChunk() {
+                    if (ws.readyState !== WebSocket.OPEN) {
+                        reject(new Error('WebSocket connection is not open'));
+                        return;
                     }
-                });
 
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'Failed to initiate file transfer');
+                    const chunk = file.slice(offset, offset + chunkSize);
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        try {
+                            ws.send(e.target.result);
+                            offset += chunk.size;
+
+                            // Update progress
+                            const progress = Math.round((offset * 100) / file.size);
+                            const progressBar = document.getElementById('fileTransferProgress');
+                            progressBar.style.display = 'block';
+                            const progressFill = progressBar.querySelector('.progress-fill');
+                            const progressText = progressBar.querySelector('.progress-text');
+                            progressFill.style.width = `${progress}%`;
+                            progressText.textContent = `${progress}%`;
+
+                            displayResponse('fileTransferStatus', {
+                                success: true,
+                                message: `Uploading file: ${progress}% complete`,
+                                code: 'UPLOAD_PROGRESS'
+                            });
+
+                            if (offset < file.size) {
+                                // Send next chunk
+                                setTimeout(sendNextChunk, 0);
+                            } else {
+                                resolve();
+                            }
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+
+                    reader.onerror = function(error) {
+                        reject(new Error('Error reading file chunk: ' + error));
+                    };
+
+                    reader.readAsArrayBuffer(chunk);
                 }
 
-                currentTransferId = data.data.id;
-                document.getElementById('fileTransferProgress').style.display = 'block';
-                
-                // Start sending file chunks
-                let offset = 0;
-                while (offset < currentFile.size) {
-                    const chunk = currentFile.slice(offset, offset + CHUNK_SIZE);
-                    const chunkArrayBuffer = await chunk.arrayBuffer();
-                    const chunkBytes = new Uint8Array(chunkArrayBuffer);
-                    const chunkResponse = await fetch(`${API_BASE_URL}/api/filetransfer/chunk/${currentTransferId}?offset=${offset}`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/octet-stream'
-                        },
-                        body: chunkBytes
-                    });
-
-                    if (!chunkResponse.ok) {
-                        throw new Error('Failed to send file chunk');
-                    }
-
-                    offset += chunkBytes.length;
-                    const progress = Math.min(100, Math.round((offset * 100) / currentFile.size));
-                    updateFileTransferProgress(progress);
-                }
-
-                // Complete file transfer
-                const completeResponse = await fetch(`${API_BASE_URL}/api/filetransfer/complete/${currentTransferId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!completeResponse.ok) {
-                    throw new Error('Failed to complete file transfer');
-                }
-
-                // Notify other clients through SignalR hub
-                try {
-                    log(`[DEBUG] Invoking FileTransferCompleted hub method for transfer ID: ${currentTransferId}`);
-                    await connection.invoke("FileTransferCompleted", currentTransferId);
-                    log(`[DEBUG] FileTransferCompleted hub method invoked successfully`);
-                } catch (error) {
-                    log(`[WARNING] Failed to invoke FileTransferCompleted hub method: ${error.message}`);
-                    // Don't throw error here, just log it as a warning
-                    // The file transfer was successful, we just couldn't notify the other client
-                }
-
-                // Wait for a short time to ensure the event is processed
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // If we're still the sender and haven't received the completion event,
-                // we can assume the transfer was successful
-                if (currentTransferId === data.data.id) {
-                    displayResponse('fileTransferStatus', {
-                        success: true,
-                        message: 'File transfer completed successfully',
-                        code: 'TRANSFER_COMPLETED'
-                    });
-                    cancelFileTransfer();
-                }
-            } catch (error) {
-                displayResponse('fileTransferStatus', {
-                    success: false,
-                    message: `File transfer failed: ${error.message}`,
-                    code: 'TRANSFER_FAILED'
-                }, true);
-                cancelFileTransfer();
-            }
+                // Start sending chunks
+                sendNextChunk();
+            });
         }
 
         function cancelFileTransfer() {
@@ -2438,6 +2450,320 @@
                 dataChannel.send(combined);
             }
         }
+
+        async function startFileTransfer() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const transferMethod = document.querySelector('input[name="transferMethod"]:checked').value;
+
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                alert('SignalR connection is not established');
+                return;
+            }
+
+            const sessionId = document.getElementById('sessionId').value;
+            if (!sessionId) {
+                alert('Please enter a session ID');
+                return;
+            }
+
+            try {
+                if (transferMethod === 'tcp') {
+                    await startTcpFileTransfer(file, sessionId);
+                } else {
+                    await startApiFileTransfer(file, sessionId);
+                }
+            } catch (error) {
+                console.error('Error during file transfer:', error);
+                alert('Error during file transfer: ' + error.message);
+            }
+        }
+
+        async function startApiFileTransfer(file, sessionId) {
+            if (!file) {
+                throw new Error('No file selected');
+            }
+
+            try {
+                // Step 1: Initiate the file transfer
+                const initiateResponse = await fetch(`${API_BASE_URL}/api/filetransfer/initiate?sessionId=${sessionId}&fileName=${encodeURIComponent(file.name)}&fileSize=${file.size}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!initiateResponse.ok) {
+                    throw new Error(`Failed to initiate transfer: ${initiateResponse.status}`);
+                }
+
+                const initiateResult = await initiateResponse.json();
+                if (!initiateResult.success) {
+                    throw new Error(initiateResult.message || 'Failed to initiate transfer');
+                }
+
+                currentTransferId = initiateResult.data.id;
+                log(`[DEBUG] File transfer initiated with ID: ${currentTransferId}`);
+
+                // Step 2: Upload file in chunks
+                const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                let uploadedChunks = 0;
+
+                for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
+                    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+                    const chunkArrayBuffer = await chunk.arrayBuffer();
+                    const chunkBytes = new Uint8Array(chunkArrayBuffer);
+
+                    const chunkResponse = await fetch(`${API_BASE_URL}/api/filetransfer/chunk/${currentTransferId}?offset=${offset}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        body: chunkBytes
+                    });
+
+                    if (!chunkResponse.ok) {
+                        throw new Error(`Failed to upload chunk at offset ${offset}: ${chunkResponse.status}`);
+                    }
+
+                    uploadedChunks++;
+                    const progress = Math.round((uploadedChunks / totalChunks) * 100);
+                    
+                    // Update progress bar
+                    const progressBar = document.getElementById('fileTransferProgress');
+                    progressBar.style.display = 'block';
+                    const progressFill = progressBar.querySelector('.progress-fill');
+                    const progressText = progressBar.querySelector('.progress-text');
+                    progressFill.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+
+                    displayResponse('fileTransferStatus', {
+                        success: true,
+                        message: `Uploading file: ${progress}% complete`,
+                        code: 'UPLOAD_PROGRESS'
+                    });
+                }
+
+                // Step 3: Complete the transfer
+                const completeResponse = await fetch(`${API_BASE_URL}/api/filetransfer/complete/${currentTransferId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!completeResponse.ok) {
+                    throw new Error(`Failed to complete transfer: ${completeResponse.status}`);
+                }
+
+                const completeResult = await completeResponse.json();
+                if (!completeResult.success) {
+                    throw new Error(completeResult.message || 'Failed to complete transfer');
+                }
+
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: 'File transfer completed successfully',
+                    code: 'TRANSFER_COMPLETED'
+                });
+
+            } catch (error) {
+                console.error('Error during file transfer:', error);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error during file transfer: ${error.message}`,
+                    code: 'TRANSFER_ERROR'
+                }, true);
+                throw error;
+            }
+        }
+
+        // Add this after the startApiFileTransfer function
+        async function handleFileTransferRequest(transferId, fileName, fileSize) {
+            try {
+                log(`[DEBUG] Received file transfer request: ${fileName} (${formatFileSize(fileSize)})`);
+                
+                // Show confirmation dialog
+                if (!confirm(`Do you want to receive the file "${fileName}" (${formatFileSize(fileSize)})?`)) {
+                    await connection.invoke("RejectFileTransfer", transferId);
+                    return;
+                }
+
+                // Accept the transfer
+                await connection.invoke("AcceptFileTransfer", transferId);
+                currentTransferId = transferId;
+
+                // Show download button
+                const downloadButton = document.getElementById('downloadButton');
+                downloadButton.style.display = 'inline-block';
+                downloadButton.onclick = () => downloadFile(transferId, fileName);
+
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: `File transfer request received: ${fileName}. Click Download when ready.`,
+                    code: 'TRANSFER_REQUESTED'
+                });
+            } catch (error) {
+                console.error('Error handling file transfer request:', error);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error handling file transfer: ${error.message}`,
+                    code: 'TRANSFER_ERROR'
+                }, true);
+            }
+        }
+
+        async function downloadFile(transferId, fileName) {
+            try {
+                log(`[DEBUG] Starting file download for transfer ID: ${transferId}`);
+                const response = await fetch(`${API_BASE_URL}/api/filetransfer/download/${transferId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+                }
+                
+                log(`[DEBUG] File download successful, creating download link`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                displayResponse('fileTransferStatus', {
+                    success: true,
+                    message: 'File downloaded successfully',
+                    code: 'DOWNLOAD_COMPLETED'
+                });
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error downloading file: ${error.message}`,
+                    code: 'DOWNLOAD_ERROR'
+                }, true);
+            }
+        }
+
+        // Add this to your connection setup code where other event handlers are registered
+        connection.on("FileTransferRequested", handleFileTransferRequest);
+
+        // Add error handler for file transfer
+        connection.on("FileTransferError", (sessionId, errorMessage) => {
+            console.error('File transfer error:', errorMessage);
+            displayResponse('fileTransferStatus', {
+                success: false,
+                message: `File transfer error: ${errorMessage}`,
+                code: 'TRANSFER_ERROR'
+            }, true);
+        });
+
+        // Add these event handlers where other SignalR event handlers are registered
+        connection.on("FileTransferAccepted", (transferId) => {
+            console.log(`File transfer ${transferId} accepted`);
+            displayResponse('fileTransferStatus', {
+                success: true,
+                message: 'File transfer accepted by receiver',
+                code: 'TRANSFER_ACCEPTED'
+            });
+        });
+
+        connection.on("FileTransferProgress", (sessionId, progress) => {
+            console.log(`File transfer progress: ${progress}%`);
+            const progressBar = document.getElementById('fileTransferProgress');
+            progressBar.style.display = 'block';
+            const progressFill = progressBar.querySelector('.progress-fill');
+            const progressText = progressBar.querySelector('.progress-text');
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+
+            displayResponse('fileTransferStatus', {
+                success: true,
+                message: `File transfer progress: ${progress}%`,
+                code: 'TRANSFER_PROGRESS'
+            });
+        });
+
+        connection.on("FileTransferCompleted", (sessionId) => {
+            console.log(`File transfer completed for session ${sessionId}`);
+            displayResponse('fileTransferStatus', {
+                success: true,
+                message: 'File transfer completed successfully',
+                code: 'TRANSFER_COMPLETED'
+            });
+        });
+
+        connection.on("FileTransferError", (sessionId, errorMessage) => {
+            console.error(`File transfer error: ${errorMessage}`);
+            displayResponse('fileTransferStatus', {
+                success: false,
+                message: `File transfer error: ${errorMessage}`,
+                code: 'TRANSFER_ERROR'
+            }, true);
+        });
+
+        // Add this to your connection setup code where other event handlers are registered
+        connection.on("ConnectToReceiver", async (sessionId) => {
+            console.log(`Received request to connect as receiver for session ${sessionId}`);
+            try {
+                const response = await fetch(`/api/filetransfer/tcp/connect?sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to connect as receiver: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                // Create WebSocket connection to receive file
+                const ws = new WebSocket(`ws://${window.location.hostname}:${result.data.port}`);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connection established as receiver');
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket connection error:', error);
+                    ws.close();
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket connection closed');
+                };
+
+                ws.onmessage = (event) => {
+                    // Handle incoming file data
+                    const chunk = event.data;
+                    // Process the chunk as needed
+                };
+            } catch (error) {
+                console.error('Error connecting as receiver:', error);
+                displayResponse('fileTransferStatus', {
+                    success: false,
+                    message: `Error connecting as receiver: ${error.message}`,
+                    code: 'TRANSFER_ERROR'
+                }, true);
+            }
+        });
     </script>
 </body>
 
