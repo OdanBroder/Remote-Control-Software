@@ -1,0 +1,7 @@
+FROM mysql:8.0
+
+# Copy the initialization script with a clearer name
+COPY ./config/db.sql /docker-entrypoint-initdb.d/01-init-remote-control-db.sql
+
+# Use the default MySQL command
+CMD ["mysqld"]

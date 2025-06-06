@@ -21,8 +21,11 @@ WORKDIR /app
 # Copy the published app
 COPY --from=publish /app/publish .
 
-# Expose ports
-EXPOSE 5000 5001 5002
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Expose port
+EXPOSE 5030 5031 5032
 
 # Start the application
 ENTRYPOINT ["dotnet", "Server.dll"] 
