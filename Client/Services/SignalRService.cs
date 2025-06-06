@@ -91,8 +91,6 @@ namespace Client.Services
             _sessionId = SessionStorage.LoadSession();
             ConnectionStatus = "Disconnected";
             _videoProcessor = new VideoProcessor();
-            _streamingWindow = new ScreenCaptureView();
-            _streamingWindow.Show();
         }
 
         public async Task ConnectToHubAsync(string sessionId)
