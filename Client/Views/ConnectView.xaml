@@ -9,6 +9,24 @@
     d:DesignHeight="450"
     d:DesignWidth="800"
     mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="RoundedTextBox" TargetType="TextBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="15">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                        Margin="{TemplateBinding Padding}"
+                                        VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.7">
@@ -126,12 +144,12 @@
             Background="WhiteSmoke"
             BorderBrush="Gray"
             BorderThickness="2"
-            CornerRadius="15"
             FontSize="14"
             FontWeight="Bold"
             Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
             TextAlignment="Center"
-            TextWrapping="Wrap" />
+            TextWrapping="Wrap"
+            Style="{StaticResource RoundedTextBox}" />
         <Button
             Width="99"
             Height="64"
