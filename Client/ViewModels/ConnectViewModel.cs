@@ -12,7 +12,6 @@ using System.Windows.Media.Animation;
 using System.Text;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
-using Client.Src.Services;
 
 namespace Client.ViewModels
 {

@@ -106,6 +106,7 @@
     </Compile>
     <Compile Include="Helpers\AppSettings.cs" />
     <Compile Include="Helpers\AsyncRelayCommand.cs" />
+    <Compile Include="Helpers\ConnectionStorage.cs" />
     <Compile Include="Helpers\SessionStorage.cs" />
     <Compile Include="Helpers\TokenStorage.cs" />
     <Compile Include="Models\ApiResponse.cs" />
