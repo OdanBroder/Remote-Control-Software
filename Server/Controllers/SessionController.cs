@@ -435,7 +435,7 @@ namespace Server.Controllers
 
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-
+            _logger.LogInformation("Disconnect");
             return Ok(new { 
                 success = true,
                 message = "Successfully disconnected from session",

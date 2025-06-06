@@ -141,6 +141,17 @@ namespace Client.Services
             }
         }
 
+        public async Task DisconnectAsync()
+        {
+            if (_connection != null)
+            {
+                await _connection.StopAsync();
+                await _connection.DisposeAsync();
+                IsConnected = false;
+                ConnectionStatus = "Disconnected";
+            }
+        }
+
         private void RegisterEventHandlers()
         {
             _connection.On<string>("ConnectionEstablished", (connectionId) =>
@@ -434,17 +445,6 @@ namespace Client.Services
 
         // Event for video track addition
         public event Action<RemoteVideoTrack> OnVideoTrackAdded;
-
-        public async Task DisconnectAsync()
-        {
-            if (_connection != null)
-            {
-                await _connection.StopAsync();
-                await _connection.DisposeAsync();
-                IsConnected = false;
-                ConnectionStatus = "Disconnected";
-            }
-        }
 
         public async Task SendWebRTCSignal(WebRTCSignal signal)
         {

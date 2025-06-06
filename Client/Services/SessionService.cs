@@ -17,7 +17,6 @@ namespace Client.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string baseUrl = AppSettings.BaseApiUri + "/api";
-
         private readonly SignalRService _signalRService;
         private string _connectionStatus;
         private string _connectionId;
@@ -104,131 +103,189 @@ namespace Client.Services
 
         public async Task<StartSessionResponse> StartSessionAsync()
         {
-            HttpResponseMessage response;
             try
             {
-                response = await _httpClient.PostAsync($"{baseUrl}/session/start", null);
+                var response = await _httpClient.PostAsync($"{baseUrl}/session/start", null);
+                var responseString = await response.Content.ReadAsStringAsync();
+                var sessionResponse = JsonConvert.DeserializeObject<StartSessionResponse>(responseString);
+
+                if (!sessionResponse.Success && sessionResponse.Code != "SESSION_EXISTS")
+                {
+                    throw new HttpRequestException($"Error while starting session: {responseString}");
+                }
+
+                if (sessionResponse.Success)
+                {
+                    Console.WriteLine($"Response when starting sessions: {responseString}");
+                    SessionStorage.SaveSession(sessionResponse.Data.SessionId);
+                    await _signalRService.ConnectToHubAsync(sessionResponse.Data.SessionId);
+                }
+
+                return sessionResponse;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
                 throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
+                    "Unable to connect to the server. Please check the URL or if the server is running.", ex);
             }
+        }
 
-            var responseString = await response.Content.ReadAsStringAsync();
-            var sessionResponse = JsonConvert.DeserializeObject<StartSessionResponse>(responseString);
+        public async Task<ApiResponse> JoinSessionAsync(string sessionId)
+        {
+            sessionId = sessionId.Trim();
+            Console.WriteLine($"Joining session ID: {sessionId}");
 
-            if (!sessionResponse.Success & sessionResponse.Code != "SESSION_EXISTS")
-                throw new HttpRequestException($"[Error]Error while starting API in SessionService: {responseString}");
-            else if(sessionResponse.Code == "SESSION_EXISTS")
+            var token = TokenStorage.LoadToken();
+            if (string.IsNullOrEmpty(token))
             {
-                return sessionResponse;
+                throw new InvalidOperationException("Not logged in");
             }
-            Console.WriteLine($"Response when starting sessions: {responseString}");
-            SessionStorage.SaveSession(sessionResponse.Data.SessionId);
-            return sessionResponse;
+
+            if (_httpClient.DefaultRequestHeaders.Authorization == null)
+            {
+                SetAuthToken(token);
+            }
+
+            try
+            {
+                var response = await _httpClient.PostAsync($"{baseUrl}/session/join/{sessionId}", null);
+                var responseString = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<ApiResponse>(responseString);
+                
+                Console.WriteLine($"Results join: {responseString}");
+                
+                if (result == null)
+                {
+                    throw new HttpRequestException("URL not found while joining");
+                }
+                
+                if (!result.Success)
+                {
+                    throw new HttpRequestException($"Error while joining session: {responseString}");
+                }
+
+                await _signalRService.ConnectToHubAsync(sessionId);
+                SessionStorage.SaveSession(sessionId);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                throw new HttpRequestException(
+                    "Unable to connect to the server. Please check the URL or if the server is running.", ex);
+            }
         }
 
         public async Task<ApiResponse> LeaveSessionAsync(string sessionId)
         {
-            HttpResponseMessage response;
-            
             try
             {
-                response = await _httpClient.PostAsync($"{baseUrl}/session/stop/{sessionId}", null);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message, "[Error]Unable to stop session: ");
-                return null;
-            }
-            try
-            {
+                var response = await _httpClient.PostAsync($"{baseUrl}/session/stop/{sessionId}", null);
                 var responseString = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<ApiResponse>(responseString);
 
-                var Response = JsonConvert.DeserializeObject<ApiResponse>(responseString);
-                if(Response is null)
+                if (result == null)
                 {
                     return null;
-                }    
+                }
+
                 Console.WriteLine($"[Debug]Response when leaving: {responseString}");
-                return Response;
+                await _signalRService.DisconnectAsync();
+                return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[Error] Error while leaving sessionId: ", ex.Message);
+                Console.WriteLine($"[Error] Error while leaving session: {ex.Message}");
                 throw new HttpRequestException(
-                    "Unable to connect to the server or there's some error while leaving sessionId", ex);
+                    "Unable to connect to the server or there's an error while leaving the session", ex);
             }
         }
+
         public async Task<SessionResponse> GetActiveSessionAsync()
         {
-            HttpResponseMessage response;
             try
             {
-                response = await _httpClient.GetAsync($"{baseUrl}/session/active");
+                var response = await _httpClient.GetAsync($"{baseUrl}/session/active");
+                var responseString = await response.Content.ReadAsStringAsync();
+                var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
+
+                if (!sessionResponse.Success)
+                {
+                    throw new HttpRequestException($"Error while getting active session: {responseString}");
+                }
+
+                if (sessionResponse.Code == "NO_SESSIONS")
+                {
+                    Console.WriteLine("No active session found, please start a new session!");
+                }
+
+                Console.WriteLine($"Response get active session: {responseString}");
+                return sessionResponse;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
                 throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
+                    "Unable to connect to the server or there's an error while getting active session", ex);
             }
+        }
+
+        public async Task<ApiResponse> ConnectToSessionAsync(string sessionId, string connectionId)
+        {
             try
             {
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/session/connect/{sessionId}");
+                request.Headers.Add("X-SignalR-Connection-Id", connectionId);
+                var response = await _httpClient.SendAsync(request);
                 var responseString = await response.Content.ReadAsStringAsync();
-
-                var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(responseString);
-
-                if (!sessionResponse.Success)
-                    throw new HttpRequestException($"Error while getting SessionId in SessionService: {responseString}");
-                else if(sessionResponse.Code == "NO_SESSIONS")
+                
+                Console.WriteLine($"[Debug] Connecting response: {responseString}");
+                var sessionResponse = JsonConvert.DeserializeObject<ApiResponse>(responseString);
+                
+                if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"No SessionId found, please start new session!");
+                    Console.WriteLine($"Error connecting to session: {responseString}");
                 }
-                Console.WriteLine($"Response get active sessionId: {responseString}");
                 
                 return sessionResponse;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"Error connecting: {ex.Message}");
                 throw new HttpRequestException(
-                    "Unable to connect to the server or there's some error while activate sessionId", ex);
+                    "Unable to connect to the server or there's an error while connecting to the session", ex);
             }
         }
-        public async Task<ApiResponse> ConnectToSessionAsync(string sessionId, string connectionId)
+
+        public async Task<ApiResponse> DisconnectFromSessionAsync(string sessionId, string connectionId)
         {
-            HttpResponseMessage response;
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/session/connect/{sessionId}");
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/session/disconnect/{sessionId}");
                 request.Headers.Add("X-SignalR-Connection-Id", connectionId);
-                response = await _httpClient.SendAsync(request);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
-            }
-            try
-            {
+                var response = await _httpClient.SendAsync(request);
                 var responseString = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("[Debug] Connecting response: ", responseString);
+                
+                Console.WriteLine($"[Debug] Disconnecting response: {responseString}");
                 var sessionResponse = JsonConvert.DeserializeObject<ApiResponse>(responseString);
+                
                 if (!response.IsSuccessStatusCode)
-                    Console.WriteLine($"Error connecting while getting SessionId : {responseString}");
+                {
+                    Console.WriteLine($"Error disconnecting from session: {responseString}");
+                }
+                
                 return sessionResponse;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error connecting: ",ex.Message);
+                Console.WriteLine($"Error disconnecting: {ex.Message}");
                 throw new HttpRequestException(
-                    "Unable to connect to the server or there's some error while connecting sessionId", ex);
+                    "Unable to connect to the server or there's an error while disconnecting from the session", ex);
             }
         }
+
         private void SubscribeToSignalREvents()
         {
             _signalRService.PropertyChanged += (s, e) =>
@@ -253,55 +310,6 @@ namespace Client.Services
                         break;
                 }
             };
-        }
-
-        public async Task<ApiResponse> JoinToSessionAsync(string sessionId)
-        {
-            var token = TokenStorage.LoadToken();
-            if (string.IsNullOrEmpty(token))
-                throw new InvalidOperationException("Chưa đăng nhập");
-
-            if (_httpClient.DefaultRequestHeaders.Authorization == null)
-                SetAuthToken(token);
-
-            HttpResponseMessage response;
-            try
-            {
-                response = await _httpClient.PostAsync($"{baseUrl}/session/join/{sessionId}", null);
-            }
-            catch (Exception ex)
-            {
-                Console.Write(baseUrl);
-                Console.WriteLine(ex.Message);
-                throw new HttpRequestException(
-                    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra URL hoặc server đang chạy.", ex);
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<ApiResponse>(responseString);
-            Console.WriteLine($"Results join: {responseString}");
-            if (result is null)
-            {
-                throw new HttpRequestException($"Url not found while joining");
-            }
-            else if (!result.Success)
-            {
-                throw new HttpRequestException($"Error while joining session API: {responseString}");
-            }
-            return result;
-        }
-        public async Task JoinSessionAsync(string sessionId)
-        {
-            sessionId = sessionId.Trim();
-            Console.WriteLine("jOINING ID: ", sessionId);
-            var response = await JoinToSessionAsync(sessionId);
-                            
-            if (!response.Success)
-            {
-                throw new Exception(response.Message ?? "Failed to join session.");
-            }
-            await _signalRService.ConnectToHubAsync(sessionId);
-            SessionStorage.SaveSession(sessionId);
         }
     }
 }

@@ -204,7 +204,7 @@ namespace Client.ViewModels
         }
 
 
-        public async Task DisconnectAsync()
+        public async Task DisconnectToHubAsync()
         {
             if (_connection != null)
             {
