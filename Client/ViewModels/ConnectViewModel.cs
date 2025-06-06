@@ -22,8 +22,6 @@ namespace Client.ViewModels
         private string _session;
         private string _joinSessionId;
         private string _errorMessage;
-        private bool _isJoining;
-
         public string Session
         {
             get => _session;
@@ -47,12 +45,6 @@ namespace Client.ViewModels
         {
             get => _errorMessage;
             set { _errorMessage = value; OnPropertyChanged(); }
-        }
-
-        public bool IsJoining
-        {
-            get => _isJoining;
-            set { _isJoining = value; OnPropertyChanged(); }
         }
 
         public string ConnectionStatus
@@ -94,7 +86,7 @@ namespace Client.ViewModels
             _streamScreen = new SendWebRTCSignal(_signalRService);
 
             ReconnectCommand = new AsyncRelayCommand(async _ => await ExecuteStartSession());
-            JoinSessionCommand = new AsyncRelayCommand(async _ => await ExecuteJoinSessionAsync(), _ => !IsJoining);
+            JoinSessionCommand = new AsyncRelayCommand(async _ => await ExecuteJoinSessionAsync());
             CopySessionCommand = new AsyncRelayCommand(async _ => await ExecuteCopySessionAsync());
             ConnectCommand = new AsyncRelayCommand(async _ => await ExecuteConnectSessionAsync());
             DisconnectCommand = new AsyncRelayCommand(async _ => await ExecuteDisconnectSessionAsync());
@@ -135,19 +127,10 @@ namespace Client.ViewModels
             ErrorMessage = string.Empty;
             try
             {
-                var response = await _sessionService.GetActiveSessionAsync();
-                if (response.Code == "SESSIONS_FOUND" && !IsJoining)
-                {
-                    string sessionId = SessionStorage.LoadSession();
-                    string connectId = ConnectionStorage.LoadConnectionId();
-                    Log.Information($"Connection Id {connectId}");
-                    await _sessionService.ConnectToSessionAsync(sessionId, connectId);
-                }
-                else
-                {
-                    ErrorMessage = "Connection Id not found please join first!";
-                    Log.Information($"Connection Id not found please join first!");
-                }
+                string sessionId = SessionStorage.LoadSession();
+                string connectId = ConnectionStorage.LoadConnectionId();
+                Log.Information($"Connection Id {connectId}");
+                await _sessionService.ConnectToSessionAsync(sessionId, connectId);
             }
             catch (Exception ex)
             {
@@ -161,7 +144,7 @@ namespace Client.ViewModels
             try
             {
                 var response = await _sessionService.GetActiveSessionAsync();
-                if (response.Code == "SESSIONS_FOUND" && !IsJoining)
+                if (response.Code == "SESSIONS_FOUND")
                 {
                     string sessionId = SessionStorage.LoadSession();
                     string connectId = ConnectionStorage.LoadConnectionId();
@@ -181,7 +164,6 @@ namespace Client.ViewModels
         }
         private async Task ExecuteJoinSessionAsync()
         {
-            IsJoining = true;
             ErrorMessage = string.Empty;
 
             try
@@ -228,14 +210,11 @@ namespace Client.ViewModels
                 await _sessionService.JoinSessionAsync(JoinSessionId);
                 Session = JoinSessionId;
                 Log.Information($"SessionsId: {Session}");
+                await ExecuteConnectSessionAsync();
             }
             catch (Exception ex)
             {
                 ErrorMessage = ex.Message;
-            }
-            finally
-            {
-                IsJoining = false;
             }
         }
 
