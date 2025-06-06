@@ -131,6 +131,7 @@
                 <TextBox Grid.Column="1"
                          FontFamily="Bold"
                          MaxLength="36"
+                         VerticalAlignment="Center"
                          Background="Transparent"
                          FontWeight="Bold"
                          BorderThickness="0"

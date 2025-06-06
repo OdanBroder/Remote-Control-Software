@@ -26,6 +26,7 @@ namespace Client.Services
         private bool _isConnected;
         private string _connectionStatus;
         private string _token, _sessionId;
+        private SessionService _sessionService;
         private PeerConnection _peerConnection;
         private WebRTCService _webrtcClient;
         private readonly string _hubUrl = AppSettings.BaseApiUri + "/remotecontrolhub";
@@ -410,7 +411,7 @@ namespace Client.Services
 
                 _capture.Start();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Log.Error($"Exception when start streaming {ex.Message}");
             }
@@ -497,6 +498,7 @@ namespace Client.Services
 
             try
             {
+                _sessionId = SessionStorage.LoadSession();
                 Log.Information("Sending WebRTC signal - Type: {SignalType}, SessionId: {SessionId}", signal.SignalType, _sessionId);
                 await _connection.InvokeAsync("SendWebRTCSignal", _sessionId, signal);
                 Log.Information("WebRTC signal sent successfully - Type: {SignalType}", signal.SignalType);
