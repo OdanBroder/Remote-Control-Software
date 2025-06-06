@@ -586,7 +586,7 @@ namespace Client.Services
             try
             {
                 Log.Information($"Executing mouse action: {JsonConvert.SerializeObject(action)}");
-                return;
+                //return;
                 // Convert nullable int to int for mouse coordinates
                 int x = action.X ?? 0;
                 int y = action.Y ?? 0;
