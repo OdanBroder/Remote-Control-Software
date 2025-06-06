@@ -18,7 +18,6 @@ using ScreenCaptureI420A;
 using Client.Views;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using System.Drawing;
 
 namespace Client.Services
 {
@@ -39,7 +38,8 @@ namespace Client.Services
         private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
         private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
         private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
-        
+        private const uint MOUSEEVENTF_MOVE = 0x0001;
+
         private HubConnection _connection;
         private string _connectionId;
         private bool _isConnected;
@@ -588,65 +588,97 @@ namespace Client.Services
             try
             {
                 Log.Information($"Executing mouse action: {JsonConvert.SerializeObject(action)}");
-                
-                // Convert nullable int to int for mouse coordinates
-                int x = action.X ?? 0;
-                int y = action.Y ?? 0;
+
+                // Validate coordinates
+                if (!action.X.HasValue || !action.Y.HasValue)
+                {
+                    Log.Error("Mouse action coordinates are null");
+                    return;
+                }
+
+                // Ensure coordinates are within valid range (0–100%)
+                float xPercent = Clamp(action.X.Value, 0, 100);
+                float yPercent = Clamp(action.Y.Value, 0, 100);
 
                 // Get screen dimensions using Windows Forms
                 var screen = Screen.PrimaryScreen;
                 int screenWidth = screen.Bounds.Width;
                 int screenHeight = screen.Bounds.Height;
 
-                // Convert relative coordinates to absolute coordinates
-                int absoluteX = (int)((x / 100.0) * screenWidth);
-                int absoluteY = (int)((y / 100.0) * screenHeight);
+                // Convert percentage coordinates to absolute screen coordinates
+                int absoluteX = (int)((xPercent / 100.0) * screenWidth);
+                int absoluteY = (int)((yPercent / 100.0) * screenHeight);
 
-                // Set cursor position with absolute coordinates
-                SetCursorPos(absoluteX, absoluteY);
+                // Normalize coordinates to 0–65535 for MOUSEEVENTF_ABSOLUTE
+                int normalizedX = (int)((absoluteX / (float)screenWidth) * 65535);
+                int normalizedY = (int)((absoluteY / (float)screenHeight) * 65535);
 
+                // return;
+                
                 // Execute mouse action based on type
-                switch (action.Action.ToLower())
+                switch (action.Action?.ToLower())
                 {
                     case "mousedown":
+                        // Set cursor position with absolute coordinates
+                        SetCursorPos(absoluteX, absoluteY);
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN, normalizedX, normalizedY, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_RIGHTDOWN, normalizedX, normalizedY, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MIDDLEDOWN, normalizedX, normalizedY, 0, 0);
                                 break;
+                            default:
+                                Log.Error($"Unsupported mouse button: {action.Button}");
+                                return;
                         }
                         break;
 
                     case "mouseup":
+                        // Set cursor position with absolute coordinates
+                        SetCursorPos(absoluteX, absoluteY);
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP, normalizedX, normalizedY, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_RIGHTUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_RIGHTUP, normalizedX, normalizedY, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_MIDDLEUP | MOUSEEVENTF_ABSOLUTE, absoluteX, absoluteY, 0, 0);
+                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MIDDLEUP, normalizedX, normalizedY, 0, 0);
                                 break;
+                            default:
+                                Log.Error($"Unsupported mouse button: {action.Button}");
+                                return;
                         }
                         break;
 
                     case "mousemove":
-                        // Cursor position is already set above
+                        // Move cursor with absolute coordinates
+                        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE, normalizedX, normalizedY, 0, 0);
                         break;
+
+                    default:
+                        Log.Error($"Unsupported mouse action: {action.Action}");
+                        return;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error($"Failed to execute mouse action: {ex.Message}");
             }
+        }
+
+        private float Clamp(float value, float min, float max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
         }
 
         public void Dispose()

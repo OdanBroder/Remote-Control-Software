@@ -131,7 +131,6 @@ namespace Client.ViewModels
 
                     if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
-
                     await Task.Delay(100); // Simulate delay
 
                     if (action.Type == "keyboard")

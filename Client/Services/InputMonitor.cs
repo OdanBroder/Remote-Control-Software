@@ -74,7 +74,7 @@ namespace Client.Services
                 _mouseUpHandler = CreateMouseEventHandler("mouseup");
                 _mouseClickHandler = CreateMouseEventHandler("click");
                 _mouseDoubleClickHandler = CreateMouseEventHandler("doubleclick");
-                //_mouseMoveHandler = CreateMouseEventHandler("move");
+                _mouseMoveHandler = CreateMouseEventHandler("move");
                 _mouseWheelHandler = CreateMouseEventHandler("wheel");
 
                 // Subscribe to events
