@@ -305,13 +305,21 @@ namespace Server.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "User not authenticated",
+                    code = "AUTH_REQUIRED"
+                });
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
             if (user == null)
             {
-                return NotFound(new { Message = "User not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "User not found",
+                    code = "USER_NOT_FOUND"
+                });
             }
 
             var session = await _context.RemoteSessions
@@ -319,19 +327,31 @@ namespace Server.Controllers
 
             if (session == null)
             {
-                return NotFound(new { Message = "Session not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "Session not found",
+                    code = "SESSION_NOT_FOUND"
+                });
             }
 
             if (!await ValidateSessionState(session))
             {
-                return BadRequest(new { Message = "Session is not active" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "Session is not active",
+                    code = "SESSION_INACTIVE"
+                });
             }
 
             // Get the actual SignalR connection ID from the request
             var connectionId = HttpContext.Request.Headers["X-SignalR-Connection-Id"].ToString();
             if (string.IsNullOrEmpty(connectionId))
             {
-                return BadRequest(new { Message = "No SignalR connection ID provided" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "No SignalR connection ID provided",
+                    code = "NO_CONNECTION_ID"
+                });
             }
 
             if (session.HostUserId == user.Id)
@@ -344,13 +364,22 @@ namespace Server.Controllers
             }
             else
             {
-                return Unauthorized(new { Message = "User is not part of this session" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "User is not part of this session",
+                    code = "NOT_SESSION_MEMBER"
+                });
             }
 
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { ConnectionId = connectionId });
+            return Ok(new { 
+                success = true,
+                message = "Successfully connected to session",
+                code = "SESSION_CONNECTED",
+                data = new { ConnectionId = connectionId }
+            });
         }
 
         [HttpPost("disconnect/{sessionId}")]
@@ -359,7 +388,11 @@ namespace Server.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User not authenticated" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "User not authenticated",
+                    code = "AUTH_REQUIRED"
+                });
             }
 
             var session = await _context.RemoteSessions
@@ -367,12 +400,20 @@ namespace Server.Controllers
 
             if (session == null)
             {
-                return NotFound(new { Message = "Session not found" });
+                return NotFound(new { 
+                    success = false,
+                    message = "Session not found",
+                    code = "SESSION_NOT_FOUND"
+                });
             }
 
             if (!await ValidateSessionState(session))
             {
-                return BadRequest(new { Message = "Session is not active" });
+                return BadRequest(new { 
+                    success = false,
+                    message = "Session is not active",
+                    code = "SESSION_INACTIVE"
+                });
             }
 
             if (session.HostUserId == Guid.Parse(userId))
@@ -385,13 +426,21 @@ namespace Server.Controllers
             }
             else
             {
-                return Unauthorized(new { Message = "User is not part of this session" });
+                return Unauthorized(new { 
+                    success = false,
+                    message = "User is not part of this session",
+                    code = "NOT_SESSION_MEMBER"
+                });
             }
 
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Successfully disconnected" });
+            return Ok(new { 
+                success = true,
+                message = "Successfully disconnected from session",
+                code = "SESSION_DISCONNECTED"
+            });
         }
 
         [HttpGet("active")]
