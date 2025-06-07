@@ -15,7 +15,7 @@ down:
 
 # Build all services
 build:
-	docker-compose build
+	docker compose up -d --build
 
 # Rebuild and restart all services
 rebuild: down build up

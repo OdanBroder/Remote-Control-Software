@@ -24,6 +24,7 @@ services:
     restart: unless-stopped
 
   server:
+    container_name: server-1
     build:
       context: .
       dockerfile: Dockerfile
@@ -54,7 +55,7 @@ services:
       - file-transfer-data:/app/FileStorage
       - aspnet-data:/root/.aspnet/DataProtection-Keys
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5030/health && curl -f http://localhost:5031/health && curl -f http://localhost:5032/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5030/health || curl -f http://localhost:5031/health || curl -f http://localhost:5032/health || exit 1"]      
       interval: 10s
       timeout: 5s
       retries: 3

@@ -178,6 +178,9 @@ builder.Services.AddSingleton<InputHandlerService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add health checks
+builder.Services.AddHealthChecks();
+
 // Clear any default URLs
 builder.WebHost.UseUrls();
 
@@ -244,6 +247,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors("AllowAll");
+
+// Add health check endpoint
+app.MapHealthChecks("/health");
 
 // Add session middleware
 app.UseSession();
