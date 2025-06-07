@@ -7,6 +7,7 @@ using Microsoft.MixedReality.WebRTC;
 using ScreenCaptureI420A; // C++/CLI assembly
 using Serilog;
 using System.Runtime.InteropServices;
+using System.Linq.Expressions;
 namespace Client.Services
 {
     public class WebRTCService : IDisposable
@@ -26,7 +27,7 @@ namespace Client.Services
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console()
                 .CreateLogger();
-             _trackSource = ExternalVideoTrackSource.CreateFromI420ACallback(OnFrameRequested);
+            _trackSource = ExternalVideoTrackSource.CreateFromI420ACallback(OnFrameRequested);
         }
 
         /// <summary>
@@ -41,19 +42,15 @@ namespace Client.Services
         /// Gọi bởi C++/CLI khi capture được frame
         /// </summary>
         public void OnI420AFrame(IntPtr yPlane,
-            int width,
-            int height,
-            int stride,
-            IntPtr uPlane,
-            IntPtr vPlane,
-            IntPtr aPlane)
+    int width,
+    int height,
+    int stride,
+    IntPtr uPlane,
+    IntPtr vPlane,
+    IntPtr aPlane)
         {
-            Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
             int ySize = stride * height;
-            int uvWidth = width / 2;
-            int uvHeight = height / 2;
-            int uvStride = uvWidth;
-            int uvSize = uvStride * uvHeight;
+            int uvSize = (width / 2) * (height / 2);
 
             _yBuffer = new byte[ySize];
             _uBuffer = new byte[uvSize];
@@ -75,7 +72,6 @@ namespace Client.Services
             _vHandle = GCHandle.Alloc(_vBuffer, GCHandleType.Pinned);
             _aHandle = GCHandle.Alloc(_aBuffer, GCHandleType.Pinned);
 
-            // Lưu width, height lại như trước
             _currentWidth = width;
             _currentHeight = height;
             _currentStride = stride;
@@ -86,35 +82,58 @@ namespace Client.Services
         /// </summary>
         public unsafe void OnFrameRequested(in FrameRequest request)
         {
-            Log.Information("OnFrameRequested: frame requested");
-            // Nếu buffer chưa được cấp phát hoặc không hợp lệ thì không làm gì
-            if (_yHandle.IsAllocated == false || _uHandle.IsAllocated == false || _vHandle.IsAllocated == false || _aHandle.IsAllocated == false)
-                return;
-            Log.Information("OnFrameRequested: frame exist");
-            // Đảm bảo rằng bạn đang làm việc với dữ liệu I420A đã có từ delegate
-            byte* yPtr = (byte*)_yHandle.AddrOfPinnedObject();
-            byte* uPtr = (byte*)_uHandle.AddrOfPinnedObject();
-            byte* vPtr = (byte*)_vHandle.AddrOfPinnedObject();
-            byte* aPtr = (byte*)_aHandle.AddrOfPinnedObject();
-
-            // Đã có dữ liệu I420A từ delegate
-            var frame = new I420AVideoFrame
+            try
             {
-                width = (uint)_currentWidth,
-                height = (uint)_currentHeight,
-                dataY = (IntPtr)yPtr,
-                dataU = (IntPtr)uPtr,
-                dataV = (IntPtr)vPtr,
-                dataA = (IntPtr)aPtr,
-                strideY = _currentStride,
-                strideU = (_currentWidth / 2),
-                strideV = (_currentWidth / 2),
-                strideA = _currentStride
-            };
+                Log.Information("OnFrameRequested: frame requested");
 
-            // Gọi CompleteRequest để trả về frame video
-            request.CompleteRequest(in frame);
+                bool allocated = _yHandle.IsAllocated && _uHandle.IsAllocated && _vHandle.IsAllocated && _aHandle.IsAllocated;
+                Log.Information("Buffer allocation status: Y={Y}, U={U}, V={V}, A={A}",
+                    _yHandle.IsAllocated, _uHandle.IsAllocated, _vHandle.IsAllocated, _aHandle.IsAllocated);
+
+                if (!allocated)
+                {
+                    Log.Warning("Skipping frame: One or more buffers not allocated.");
+                    return;
+                }
+
+                byte* yPtr = (byte*)_yHandle.AddrOfPinnedObject();
+                byte* uPtr = (byte*)_uHandle.AddrOfPinnedObject();
+                byte* vPtr = (byte*)_vHandle.AddrOfPinnedObject();
+                byte* aPtr = (byte*)_aHandle.AddrOfPinnedObject();
+
+                Console.WriteLine($"Detail frame: {_currentWidth}x{_currentHeight}, stride: {_currentStride}");
+
+                var frame = new I420AVideoFrame
+                {
+                    width = (uint)_currentWidth,
+                    height = (uint)_currentHeight,
+                    dataY = (IntPtr)yPtr,
+                    dataU = (IntPtr)uPtr,
+                    dataV = (IntPtr)vPtr,
+                    dataA = (IntPtr)aPtr,
+                    strideY = _currentStride,
+                    strideU = (_currentWidth / 2),
+                    strideV = (_currentWidth / 2),
+                    strideA = _currentStride
+                };
+
+                try
+                {
+                    Console.WriteLine("OnFrameRequested: Complete Request!");
+                    request.CompleteRequest(in frame);
+                }
+                catch (Exception innerEx)
+                {
+                    Log.Error("Failed to complete request: {msg}", innerEx.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Error with requested frame: {err}", ex);
+                throw new InvalidOperationException(ex.Message);
+            }
         }
+
 
         /// <summary>
         /// Tạo local video track từ một nguồn nội bộ để sử dụng trong WebRTC 

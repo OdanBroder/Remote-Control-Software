@@ -20,6 +20,7 @@ using MessagePack;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Caching.Distributed;
 using StackExchange.Redis;
+using Serilog;
 
 // Load .env file
 DotEnv.Load();

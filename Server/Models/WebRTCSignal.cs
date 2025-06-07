@@ -11,7 +11,7 @@ namespace Server.Models
         public required string SessionIdentifier { get; set; }
         public required string ConnectionId { get; set; }
         public required string SignalType { get; set; }  // "offer", "answer", "ice-candidate"
-        public required object SignalData { get; set; }
+        public object? SignalData { get; set; }
         public object? Content { get; set; }
         public string? Sdp { get; set; } // Only for offer/answer
         public string? Candidate { get; set; } // Only for ice-candidate

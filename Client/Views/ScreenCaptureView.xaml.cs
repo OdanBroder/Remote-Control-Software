@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Diagnostics;
 
 namespace Client.Views
 {
@@ -23,6 +24,7 @@ namespace Client.Views
         private readonly DispatcherTimer _frameTimer;
         private BitmapSource _currentFrame;
         private readonly object _frameLock = new object();
+        private bool _isUpdating;
 
         public ScreenCaptureView()
         {
@@ -34,29 +36,38 @@ namespace Client.Views
             _frameTimer.Tick += FrameTimer_Tick;
             _frameTimer.Start();
         }
-
-        public void UpdateFrame(BitmapSource frame)
-        {
-            lock (_frameLock)
-            {
-                _currentFrame = frame;
-            }
-        }
-
         private void FrameTimer_Tick(object sender, EventArgs e)
         {
-            lock (_frameLock)
+            if (_isUpdating) return;
+
+            try
             {
-                if (_currentFrame != null)
+                _isUpdating = true;
+                lock (_frameLock)
                 {
-                    CaptureImage.Source = _currentFrame;
+                    if (_currentFrame != null)
+                    {
+                        CaptureImage.Source = _currentFrame;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message, "Error in frame timer tick");
+            }
+            finally
+            {
+                _isUpdating = false;
             }
         }
 
         protected override void OnClosed(EventArgs e)
         {
             _frameTimer.Stop();
+            lock (_frameLock)
+            {
+                _currentFrame = null;
+            }
             base.OnClosed(e);
         }
     }

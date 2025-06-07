@@ -7,6 +7,7 @@ using Server.Models;
 using Server.Data;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using SIPSorcery.Net;
 
 namespace Server.Hubs
 {
@@ -241,7 +242,6 @@ namespace Server.Hubs
                     _logger.LogWarning($"Session not found: {sessionId}");
                     return;
                 }
-
                 // Verify user is part of the session
                 if (session.HostUserId.ToString() != userId && session.ClientUserId.ToString() != userId)
                 {
@@ -255,11 +255,12 @@ namespace Server.Hubs
                     _logger.LogWarning($"Session {sessionId} is not active");
                     return;
                 }
-
                 // Get target connection ID
-                var targetConnectionId = session.HostConnectionId == Context.ConnectionId 
+                var targetConnectionId = session.HostConnectionId== Context.ConnectionId 
                     ? session.ClientConnectionId 
                     : session.HostConnectionId;
+                _logger.LogWarning($"User with {targetConnectionId} is active");
+                _logger.LogInformation($"Sender {Context.ConnectionId}, Receiver: {session.ClientConnectionId}, {session.HostConnectionId}");
 
                 if (string.IsNullOrEmpty(targetConnectionId))
                 {
@@ -267,17 +268,54 @@ namespace Server.Hubs
                     return;
                 }
 
-                _logger.LogInformation($"Forwarding WebRTC signal from {Context.ConnectionId} to {targetConnectionId}");
+                _logger.LogInformation($"Forwarding WebRTC signal '{signal.SignalType}' from {Context.ConnectionId} to {targetConnectionId}");
 
-                // Forward the signal to the peer
                 var message = new WebRTCSignal
                 {
-                    SessionIdentifier = sessionId,
-                    ConnectionId = Context.ConnectionId,
-                    SignalType = signal.SignalType,
-                    SignalData = signal.SignalData
+                    SessionIdentifier = "xxxxxx",
+                    ConnectionId = "xxxxxx",
+                    SignalType = "xxxxxx",
                 };
 
+                switch (signal.SignalType)
+                {
+                    case "offer":
+                        message = new WebRTCSignal
+                        {
+                            SessionIdentifier = sessionId,
+                            ConnectionId = Context.ConnectionId,
+                            SignalType = signal.SignalType,
+                            Content = signal.Content
+                        };
+                        break;
+
+                    case "answer":
+                        message = new WebRTCSignal
+                        {
+                            SessionIdentifier = sessionId,
+                            ConnectionId = Context.ConnectionId,
+                            SignalType = signal.SignalType,
+                            Content = signal.Content
+                        };
+                        break;
+
+                    case "ice-candidate":
+                        message = new WebRTCSignal
+                        {
+                            SessionIdentifier = sessionId,
+                            ConnectionId = Context.ConnectionId,
+                            SignalType = "ice-candidate",
+                            Content = signal.Content,
+                            SdpMid = signal.SdpMid,
+                            SdpMLineIndex = signal.SdpMLineIndex
+                        };
+                        break;
+
+                    default:
+                        _logger.LogWarning($"Unknown signal type '{signal.SignalType}' received from {Context.ConnectionId}");
+                        break;
+                }
+                _logger.LogDebug("WebRTCSignal created: {@Message}", message);
                 await Clients.Client(targetConnectionId)
                     .SendAsync("ReceiveWebRTCSignal", message);
             }

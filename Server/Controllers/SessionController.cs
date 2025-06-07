@@ -363,7 +363,7 @@ namespace Server.Controllers
                     code = "NO_CONNECTION_ID"
                 });
             }
-
+            
             if (session.HostUserId == user.Id)
             {
                 session.HostConnectionId = connectionId;
@@ -380,9 +380,19 @@ namespace Server.Controllers
                     code = "NOT_SESSION_MEMBER"
                 });
             }
-
+            if(session.HostConnectionId==session.ClientConnectionId)
+            {
+                session.ClientConnectionId = null;
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "User cannot be host and client",
+                    code = "SAME_SESSION_MEMBER"
+                });
+            }
             session.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            _logger.LogInformation($"Host connectionid: {session.HostConnectionId}, client connectionid: {session.ClientConnectionId}, connection id: {connectionId}");
 
             return Ok(new { 
                 success = true,

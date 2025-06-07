@@ -13,7 +13,7 @@ namespace Client.Models
         public string? ConnectionId { get; set; }
         public string? SignalType { get; set; }  // "offer", "answer", "ice-candidate"
         public object? SignalData { get; set; }
-        public object? Content { get; set; }
+        public string? Content { get; set; }
         public string? Sdp { get; set; } // Only for offer/answer
         public string? Candidate { get; set; } // Only for ice-candidate
         public string? SdpMid { get; set; }

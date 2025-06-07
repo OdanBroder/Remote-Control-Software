@@ -10,9 +10,7 @@ using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 using Client.Helpers;
 using System.Net.Http;
-using System.Data.Common;
 using Microsoft.AspNetCore.Http.Connections;
-using System.Security.Cryptography.X509Certificates;
 using Serilog;
 using ScreenCaptureI420A;
 using Client.Views;
@@ -21,6 +19,10 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices.ComTypes;
 
 
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
+using System.Windows;
+using Video;
 namespace Client.Services
 {
     public class SignalRService : IDisposable
@@ -42,13 +44,14 @@ namespace Client.Services
         private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
         private const uint MOUSEEVENTF_MOVE = 0x0001;
 
+        private WriteableBitmap? _writeableBitmap = null;
+
         private HubConnection _connection;
         private string _connectionId;
         private bool _isConnected;
         private string _connectionStatus;
         private string _token, _sessionId;
-        private SessionService _sessionService;
-        private PeerConnection _peerConnection;
+        private PeerConnection pc;
         private WebRTCService _webrtcClient;
         private readonly string _hubUrl = AppSettings.BaseApiUri + "/remotecontrolhub";
         private bool _connectionEstablished = false;
@@ -58,11 +61,11 @@ namespace Client.Services
         private bool _isDisposed;
         private ScreenCaptureDXGI _capture;
         private LocalVideoTrack _localVideoTrack;
-        private VideoProcessor _videoProcessor;
-        private ScreenCaptureView _streamingWindow;
+        private VideoHelper _videoProcessor;
+        ScreenCaptureView streamingWindow;
         private PropertyChangedEventHandler _signalREventHandler;
         private Action<RemoteVideoTrack> _remoteTrackHandler;
-
+        private bool isSender = true;
         public string ConnectionId
         {
             get => _connectionId;
@@ -94,7 +97,6 @@ namespace Client.Services
             _token = TokenStorage.LoadToken();
             _sessionId = SessionStorage.LoadSession();
             ConnectionStatus = "Disconnected";
-            _videoProcessor = new VideoProcessor();
         }
 
         public async Task ConnectToHubAsync(string sessionId)
@@ -249,28 +251,29 @@ namespace Client.Services
                 Log.Information("Received screen update: {Length} bytes", imageBase64.Length);
             });
 
-            _connection.On<dynamic>("ReceiveWebRTCSignal", async payload =>
+            _connection.On<WebRTCSignal>("ReceiveWebRTCSignal", async payload =>
             {
                 try
                 {
+                    if (pc == null || !pc.IsConnected) await GetOrCreatePeer();
                     var signalData = JsonConvert.DeserializeObject<WebRTCSignal>(JsonConvert.SerializeObject(payload));
+                    Console.WriteLine($"Debug: {signalData}");
                     Log.Information("Received WebRTC {SignalType} signal from {ConnectionId}", signalData.SignalType, signalData.ConnectionId);
 
                     switch (signalData.SignalType.ToLower())
                     {
                         case "offer":
-                            await HandleSdpAsync(signalData.ConnectionId, signalData.SignalData.ToString(), "offer");
+                            await HandleSdpAsync(signalData.ConnectionId, signalData.Content, "offer");
                             break;
                         case "answer":
-                            await HandleSdpAsync(signalData.ConnectionId, signalData.SignalData.ToString(), "answer");
+                            await HandleSdpAsync(signalData.ConnectionId, signalData.Content, "answer");
                             break;
                         case "ice-candidate":
-                            var candidate = JsonConvert.DeserializeObject<IceCandidate>(signalData.SignalData.ToString());
                             await HandleIceCandidateAsync(
                                 signalData.ConnectionId,
-                                candidate.Content,
-                                candidate.SdpMid,
-                                candidate.SdpMlineIndex
+                                signalData.Content,
+                                signalData.SdpMid,
+                                signalData.SdpMLineIndex ?? 0
                             );
                             break;
                     }
@@ -373,23 +376,15 @@ namespace Client.Services
                     return new ApiResponse { Success = false, Message = "SignalR is not connected" };
                 }
 
-                if (_peerConnection != null)
+                if (pc != null)
                 {
                     Log.Warning("PeerConnection already exists");
                     return new ApiResponse { Success = false, Message = "PeerConnection already initialized" };
                 }
+                isSender = isStreamer;
 
-                await InitializePeerConnection(isStreamer);
-
-                if (isStreamer)
-                {
-                    SetupStreaming();
-                }
-                else
-                {
-                    SetupViewing();
-                }
-
+                if (isStreamer) await SetupStreaming();
+                else await SetupViewing();
                 _isStreaming = true;
                 return new ApiResponse { Success = true, Message = "Streaming started successfully" };
             }
@@ -400,9 +395,16 @@ namespace Client.Services
             }
         }
 
-        private async Task InitializePeerConnection(bool isStreamer)
+        private async Task GetOrCreatePeer()
         {
-            _peerConnection = new PeerConnection();
+            if (pc != null)
+            {
+                return;
+            }
+            string connectionId = ConnectionStorage.LoadConnectionId();
+            string sessionId = SessionStorage.LoadSession();
+            Log.Debug("Peer connection created: {peerId}", connectionId);
+            pc = new PeerConnection();
             var config = new PeerConnectionConfiguration
             {
                 IceServers = new List<IceServer>
@@ -411,53 +413,161 @@ namespace Client.Services
                 }
             };
 
-            await _peerConnection.InitializeAsync(config);
-
-            _peerConnection.LocalSdpReadytoSend += async (SdpMessage msg) =>
+            await pc.InitializeAsync(config);
+            // set up environment
+            if (isSender)
             {
-                var signal = new WebRTCSignal
+                _capture = new ScreenCaptureDXGI();
+                _webrtcClient = new WebRTCService();
+                _capture.OnFrameCaptured += _webrtcClient.OnI420AFrame;
+                var localtrack = _webrtcClient.CreateLocalVideoTrack();
+                // Tạo Transceiver với video track
+                var transceiverInit = new TransceiverInitSettings
                 {
-                    SessionIdentifier = _sessionId,
-                    ConnectionId = ConnectionId,
-                    SignalType = msg.Type.ToString().ToLower(),
-                    SignalData = msg.Content
+                    Name = "video",
+                    StreamIDs = new List<string> { "stream1" }
                 };
+                var videoTransceiver = pc.AddTransceiver(MediaKind.Video, transceiverInit);
+                videoTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
+                videoTransceiver.LocalVideoTrack = localtrack;
 
-                await SendWebRTCSignal(signal);
-            };
-
-            _peerConnection.IceCandidateReadytoSend += async (IceCandidate candidate) =>
-            {
-                var signal = new WebRTCSignal
+                // Log trạng thái của video track
+                if (videoTransceiver.LocalVideoTrack != null)
                 {
-                    SessionIdentifier = _sessionId,
+                    Log.Information("Video track added and is being sent.");
+                }
+                else
+                {
+                    Log.Warning("Failed to add video track.");
+                }
+
+                Log.Information("Starting screen capture...");
+            }
+            // Set up event handlers
+            pc.LocalSdpReadytoSend += async msg =>
+            {
+                Log.Debug("Content of local sdp: {Content}", msg.Content);
+                var message = new WebRTCSignal
+                {
+                    Content = msg.Content,
+                    SignalType = msg.Type.ToString().ToLower(),
+                    SessionIdentifier = sessionId,
+                    ConnectionId = ConnectionId,
+                };
+                await SendWebRTCSignal(message);
+            };
+            pc.IceCandidateReadytoSend += async cand =>
+            {
+                var message = new WebRTCSignal
+                {
+                    SessionIdentifier = sessionId,
                     ConnectionId = ConnectionId,
                     SignalType = "ice-candidate",
-                    SignalData = new
-                    {
-                        candidate = candidate.Content,
-                        sdpMid = candidate.SdpMid,
-                        sdpMLineIndex = candidate.SdpMlineIndex
-                    }
+                    Content = cand.Content,
+                    SdpMid = cand.SdpMid,
+                    SdpMLineIndex = cand.SdpMlineIndex
                 };
-
-                await SendWebRTCSignal(signal);
+                await SendWebRTCSignal(message);
             };
-            _peerConnection.VideoTrackAdded += track =>
+            Log.Information($"Video track is adding...");
+
+            pc.VideoTrackAdded += track =>
             {
                 Log.Information("Video track added: {Name}", track.Name);
 
                 track.I420AVideoFrameReady += frame =>
                 {
-                    Log.Information("Y data size: {YSize}, U data size: {USize}, V data size: {VSize}, A data size: {ASize}",
-                        frame.dataY, frame.dataU, frame.dataV, frame.dataA);
+                    try
+                    {
+                        int width = (int)frame.width;
+                        int height = (int)frame.height;
 
-                    //HandleVideoTrackAdded(track); // Gọi hàm xử lý frame
+                        Log.Information("Processing frame: {Width}x{Height}", width, height);
+
+                        // Convert I420A to RGB byte[] (your existing method)
+                        byte[]? rgbData = null;
+                        bool success = VideoProcessor.ConvertI420AToRGB(
+                            frame.dataY, frame.strideY,
+                            frame.dataU, frame.strideU,
+                            frame.dataV, frame.strideV,
+                            frame.dataA, frame.strideA,
+                            width, height,
+                            ref rgbData);
+                        Log.Information("Calling ConvertI420AToBGRA: W={0}, H={1}, Ystride={2}, Ustride={3}, Vstride={4}, Astride={5}",
+                        frame.width, frame.height, frame.strideY, frame.strideU, frame.strideV, frame.strideA);
+
+                        Log.Information("Pointers: Y={0}, U={1}, V={2}, A={3}",
+                            frame.dataY, frame.dataU, frame.dataV, frame.dataA);
+
+                        if (!success)
+                        {
+                            Log.Warning("Libyuv unable to convert");
+                        }
+                        if (!success || rgbData == null)
+                        {
+                            Log.Warning("Failed to convert I420A to RGB");
+                            return;
+                        }
+
+                        if (streamingWindow != null)
+                        {
+                            streamingWindow.Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                try
+                                {
+                                    // Create WriteableBitmap once
+                                    if (_writeableBitmap == null)
+                                    {
+                                        _writeableBitmap = new WriteableBitmap(
+                                            width,
+                                            height,
+                                            96,
+                                            96,
+                                        PixelFormats.Bgr24,
+                                            null);
+                                        streamingWindow.CaptureImage.Source = _writeableBitmap;
+                                    }
+
+                                    // Update pixels in WriteableBitmap
+                                    _writeableBitmap.Lock();
+
+                                    // Copy rgbData into back buffer
+                                    System.Runtime.InteropServices.Marshal.Copy(
+                                        rgbData, 0, _writeableBitmap.BackBuffer, rgbData.Length);
+
+                                    // Indicate the area updated
+                                    _writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
+                                    _writeableBitmap.Unlock();
+
+                                    Log.Debug("Frame updated successfully (WriteableBitmap)");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Error updating frame in UI");
+                                }
+                            }));
+                        }
+                        else
+                        {
+                            Log.Warning("Streaming window is not ready");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error processing video frame");
+                    }
                 };
+
             };
+            if (isSender)
+            {
+                Log.Information("Creating offer...");
+                pc.CreateOffer();
+            }
         }
 
-        private void SetupStreaming()
+
+        private async Task SetupStreaming()
         {
             if (_connection == null || _connection.State != HubConnectionState.Connected)
             {
@@ -466,33 +576,7 @@ namespace Client.Services
             }
             try
             {
-                _capture = new ScreenCaptureDXGI();
-                _webrtcClient = new WebRTCService();
-
-                _localVideoTrack = _webrtcClient.CreateLocalVideoTrack();
-                _capture.OnFrameCaptured += _webrtcClient.OnI420AFrame;
-
-                var transceiverInit = new TransceiverInitSettings
-                {
-                    Name = "video",
-                    StreamIDs = new List<string> { "stream1" }
-                };
-
-                var videoTransceiver = _peerConnection.AddTransceiver(MediaKind.Video, transceiverInit);
-                videoTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
-                videoTransceiver.LocalVideoTrack = _localVideoTrack;
-
-                if (videoTransceiver.LocalVideoTrack == null)
-                {
-                    throw new InvalidOperationException("Failed to add video track");
-                }
-
-                Log.Information("Creating offer...");
-                if (!_peerConnection.CreateOffer())
-                {
-                    throw new InvalidOperationException("Offer creation failed");
-                }
-
+                await GetOrCreatePeer();
                 _capture.Start();
             }
             catch (Exception ex)
@@ -501,34 +585,40 @@ namespace Client.Services
             }
         }
 
-        private void SetupViewing()
+        private async Task SetupViewing()
         {
             if (_connection == null || _connection.State != HubConnectionState.Connected)
             {
                 Log.Warning("Connection SignalR should be run first...");
                 return;
             }
-            var transceiverInit = new TransceiverInitSettings
+            try
             {
-                Name = "video",
-                StreamIDs = new List<string> { "stream1" }
-            };
-
-            var videoTransceiver = _peerConnection.AddTransceiver(MediaKind.Video, transceiverInit);
-            videoTransceiver.DesiredDirection = Transceiver.Direction.ReceiveOnly;
+                Log.Information("Setting up viewing mode...");
+                streamingWindow = new ScreenCaptureView();
+                _videoProcessor = new VideoHelper();
+                streamingWindow.Show();
+                await GetOrCreatePeer();
+                Log.Information("Viewing setup completed");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error in SetupViewing");
+                throw;
+            }
         }
 
-        public void HandleIceCandidateAsync(string connectionId, string candidate, string sdpMid, int sdpMlineIndex)
+        public async Task HandleIceCandidateAsync(string connectionId, string candidate, string sdpMid, int sdpMlineIndex)
         {
-            if (_peerConnection == null)
+            if (pc == null || !pc.Initialized)
             {
-                Log.Error("PeerConnection not found");
-                return;
+                await GetOrCreatePeer();
             }
+
             try
             {
                 Log.Information("Adding ICE candidate for {ConnectionId}", connectionId);
-                _peerConnection.AddIceCandidate(new IceCandidate
+                pc.AddIceCandidate(new IceCandidate
                 {
                     Content = candidate,
                     SdpMid = sdpMid,
@@ -538,33 +628,46 @@ namespace Client.Services
             catch (Exception ex)
             {
                 Log.Error(ex, "Error adding ICE candidate for {ConnectionId}", connectionId);
+                throw new InvalidOperationException($"Error adding ICE candidate for {connectionId}");
+
             }
         }
 
         public async Task HandleSdpAsync(string connectionId, string sdp, string type)
         {
-            if (_peerConnection == null)
+            if (pc == null || !pc.Initialized)
             {
-                Log.Error("PeerConnection not found");
-                return;
+                await GetOrCreatePeer();
             }
-
             try
             {
-                Log.Information("Handling SDP of type {Type} for {ConnectionId}", type, connectionId);
-                var sdpMessage = new SdpMessage
+                Log.Debug($"Handle sdp: {sdp}");
+                Log.Information("Handling SDP of {Type} for {ConnectionId}", type, connectionId);
+                if (string.IsNullOrWhiteSpace(sdp))
                 {
-                    Type = type.ToLower() == "offer" ? SdpMessageType.Offer : SdpMessageType.Answer,
-                    Content = sdp
-                };
-
-                await _peerConnection.SetRemoteDescriptionAsync(sdpMessage);
-
-                if (type.ToLower() == "offer")
-                {
-                    Log.Information("Creating answer for {ConnectionId}", connectionId);
-                    _peerConnection.CreateAnswer();
+                    Log.Error("Received empty SDP for {ConnectionId}", connectionId);
+                    return;
                 }
+
+                if (type == "offer")
+                {
+                    await pc.SetRemoteDescriptionAsync(new SdpMessage
+                    {
+                        Type = SdpMessageType.Offer,
+                        Content = sdp
+                    });
+                    pc.CreateAnswer();
+                }
+                else
+                {
+                    await pc.SetRemoteDescriptionAsync(new SdpMessage
+                    {
+                        Type = SdpMessageType.Answer,
+                        Content = sdp
+                    });
+                    Log.Information("Creating answer for {ConnectionId}", connectionId);
+                }
+
             }
             catch (Exception ex)
             {
@@ -607,13 +710,6 @@ namespace Client.Services
                 {
                     _localVideoTrack.Dispose();
                     _localVideoTrack = null;
-                }
-
-                if (_peerConnection != null)
-                {
-                    _peerConnection.Close();
-                    _peerConnection.Dispose();
-                    _peerConnection = null;
                 }
 
                 _isStreaming = false;
@@ -660,6 +756,10 @@ namespace Client.Services
                 // Convert percentage coordinates to absolute screen coordinates
                 int absoluteX = (int)((xPercent / 100.0) * screenWidth);
                 int absoluteY = (int)((yPercent / 100.0) * screenHeight);
+                //return;
+                // Convert nullable int to int for mouse coordinates
+                int x = action.X ?? 0;
+                int y = action.Y ?? 0;
 
                 // Normalize coordinates to 0–65535 for MOUSEEVENTF_ABSOLUTE
                 int normalizedX = (int)((absoluteX / (float)screenWidth) * 65535);

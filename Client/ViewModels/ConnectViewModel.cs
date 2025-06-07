@@ -78,7 +78,6 @@ namespace Client.ViewModels
 
         private readonly SendInputServices _sendInput;
         private InputMonitor _inputMonitor;
-        private SendWebRTCSignal _streamScreen;
 
         public ConnectViewModel(SessionService sessionService, SignalRService signalRService)
         {
@@ -86,7 +85,6 @@ namespace Client.ViewModels
             _sessionService = sessionService;
             _signalRService = signalRService;
             _sendInput = new SendInputServices(_signalRService);
-            _streamScreen = new SendWebRTCSignal(_signalRService);
 
             ReconnectCommand = new AsyncRelayCommand(async _ => await ExecuteStartSession());
             LeaveSessionCommand = new AsyncRelayCommand(async _ => await ExecuteLeaveSessionAsync());
@@ -312,15 +310,14 @@ namespace Client.ViewModels
         {
             try
             {
+                ErrorMessage = "Start streaming...";
                 SessionResponse sessionResponse = await _sessionService.GetActiveSessionAsync();
                 await _signalRService.ConnectToHubAsync(sessionResponse.Data[0].SessionId);
                 await WaitForSignalRConnection();
-                var webRTCSignal = new SendWebRTCSignal(_signalRService);
-                var response = await webRTCSignal.StartStreaming(isStreamer: true);
+                var response = await _signalRService.StartStreaming(isStreamer: true);
             }
             catch (Exception ex)
             {
-                _streamScreen.Dispose();
                 await _signalRService.DisconnectToHubAsync();
                 Console.WriteLine($"Error when streaming: {ex.Message}");
             }
@@ -330,7 +327,6 @@ namespace Client.ViewModels
         {
             try
             {
-                _streamScreen.Dispose();
                 await _signalRService.DisconnectToHubAsync();
             }
             catch (Exception ex)
@@ -343,12 +339,12 @@ namespace Client.ViewModels
         {
             try
             {
+                ErrorMessage = "Wait for sender...";
                 SessionResponse sessionResponse = await _sessionService.GetActiveSessionAsync();
                 await _signalRService.ConnectToHubAsync(sessionResponse.Data[0].SessionId);
                 await WaitForSignalRConnection();
-                var webRTCSignal = new SendWebRTCSignal(_signalRService);
-                var videoProcessor = new VideoProcessor();
-                var response = await webRTCSignal.StartStreaming(isStreamer: false);
+                //var webRTCSignal = new SendWebRTCSignal(_signalRService);
+                var response = await _signalRService.StartStreaming(isStreamer: false);
             }
             catch (Exception ex)
             {

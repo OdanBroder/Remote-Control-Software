@@ -122,10 +122,9 @@
     <Compile Include="Services\FileTransferService.cs" />
     <Compile Include="Services\InputMonitor.cs" />
     <Compile Include="Services\SendInputServices.cs" />
-    <Compile Include="Services\SendWebRTCSignal.cs" />
     <Compile Include="Services\SessionService.cs" />
     <Compile Include="Services\SignalRService.cs" />
-    <Compile Include="Services\VideoProcessor.cs" />
+    <Compile Include="Helpers\VideoHelper.cs" />
     <Compile Include="Services\WebRTCService.cs" />
     <Compile Include="ViewModels\ConnectViewModel.cs" />
     <Compile Include="ViewModels\FileReceiveRequestViewModel.cs" />
@@ -268,7 +267,7 @@
     <Content Include="DXGICaptureCore.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Libs\libyuv.dll">
+    <Content Include="libyuv.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Libs\ScreenCaptureLibrary.dll">
