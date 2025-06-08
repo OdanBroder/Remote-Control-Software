@@ -6,6 +6,7 @@ using Client.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Diagnostics;
 
 namespace Client.Services
 {
@@ -17,6 +18,9 @@ namespace Client.Services
         private IKeyboardMouseEvents _globalHook;
         private readonly SendInputServices _inputSender;
         private bool _isDisposed;
+        private Stopwatch _lastMouseMoveTime;
+        private const int MOUSE_MOVE_THROTTLE_MS = 16; // ~60fps
+        private Point _lastMousePosition;
 
         // Event handlers
         private KeyEventHandler _keyDownHandler;
@@ -35,6 +39,9 @@ namespace Client.Services
         public InputMonitor(SendInputServices inputSender)
         {
             _inputSender = inputSender ?? throw new ArgumentNullException(nameof(inputSender));
+            _lastMouseMoveTime = new Stopwatch();
+            _lastMouseMoveTime.Start();
+            _lastMousePosition = new Point(0, 0);
         }
 
         /// <summary>
@@ -74,7 +81,7 @@ namespace Client.Services
                 _mouseUpHandler = CreateMouseEventHandler("mouseup");
                 _mouseClickHandler = CreateMouseEventHandler("click");
                 _mouseDoubleClickHandler = CreateMouseEventHandler("doubleclick");
-                _mouseMoveHandler = CreateMouseEventHandler("move");
+                _mouseMoveHandler = CreateMouseEventHandler("mousemove");
                 _mouseWheelHandler = CreateMouseEventHandler("wheel");
 
                 // Subscribe to events
@@ -97,6 +104,26 @@ namespace Client.Services
         {
             return async (s, e) =>
             {
+                // For mouse move events, implement throttling
+                if (actionName == "mousemove")
+                {
+                    // Check if enough time has passed since last move
+                    if (_lastMouseMoveTime.ElapsedMilliseconds < MOUSE_MOVE_THROTTLE_MS)
+                    {
+                        return;
+                    }
+
+                    // Check if position has changed significantly (optional)
+                    if (Math.Abs(e.X - _lastMousePosition.X) < 2 && 
+                        Math.Abs(e.Y - _lastMousePosition.Y) < 2)
+                    {
+                        return;
+                    }
+
+                    _lastMousePosition = new Point(e.X, e.Y);
+                    _lastMouseMoveTime.Restart();
+                }
+
                 // Get screen dimensions using Windows Forms
                 var screen = Screen.PrimaryScreen;
                 int screenWidth = screen.Bounds.Width;

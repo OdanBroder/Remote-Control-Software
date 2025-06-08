@@ -756,33 +756,29 @@ namespace Client.Services
                 // Convert percentage coordinates to absolute screen coordinates
                 int absoluteX = (int)((xPercent / 100.0) * screenWidth);
                 int absoluteY = (int)((yPercent / 100.0) * screenHeight);
-                //return;
-                // Convert nullable int to int for mouse coordinates
-                int x = action.X ?? 0;
-                int y = action.Y ?? 0;
 
-                // Normalize coordinates to 0–65535 for MOUSEEVENTF_ABSOLUTE
-                int normalizedX = (int)((absoluteX / (float)screenWidth) * 65535);
-                int normalizedY = (int)((absoluteY / (float)screenHeight) * 65535);
+                // For mouse movement, use SetCursorPos directly as it's more efficient
+                if (action.Action?.ToLower() == "mousemove")
+                {
+                    SetCursorPos(absoluteX, absoluteY);
+                    return;
+                }
 
-                // return;
-                
-                // Execute mouse action based on type
+                // For clicks, use mouse_event with absolute coordinates
                 switch (action.Action?.ToLower())
                 {
                     case "mousedown":
-                        // Set cursor position with absolute coordinates
                         SetCursorPos(absoluteX, absoluteY);
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_RIGHTDOWN, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MIDDLEDOWN, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
                                 break;
                             default:
                                 Log.Error($"Unsupported mouse button: {action.Button}");
@@ -791,28 +787,22 @@ namespace Client.Services
                         break;
 
                     case "mouseup":
-                        // Set cursor position with absolute coordinates
                         SetCursorPos(absoluteX, absoluteY);
                         switch (action.Button?.ToLower())
                         {
                             case "left":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                                 break;
                             case "right":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_RIGHTUP, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
                                 break;
                             case "middle":
-                                mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MIDDLEUP, normalizedX, normalizedY, 0, 0);
+                                mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
                                 break;
                             default:
                                 Log.Error($"Unsupported mouse button: {action.Button}");
                                 return;
                         }
-                        break;
-
-                    case "mousemove":
-                        // Move cursor with absolute coordinates
-                        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE, normalizedX, normalizedY, 0, 0);
                         break;
 
                     default:
