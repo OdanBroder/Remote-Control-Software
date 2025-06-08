@@ -434,7 +434,7 @@ namespace Server.Services
                 {
                     return Task.FromResult<(bool success, string message, int? port)>((false, "No pending transfer found", null));
                 }
-
+                Console.WriteLine(_receiverPorts);
                 if (!_receiverPorts.TryGetValue(sessionId, out var port))
                 {
                     return Task.FromResult<(bool success, string message, int? port)>((false, "No receiver port allocated", null));
