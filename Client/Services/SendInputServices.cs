@@ -25,7 +25,7 @@ namespace Client.Services
 
         public async Task<ApiResponse> SendInputAsync(InputAction inputAction)
         {
-            Console.WriteLine($"Attempting to send input: Action={inputAction.Action}, Button={inputAction.Button}");
+            // Console.WriteLine($"Attempting to send input: Action={inputAction.Action}, Button={inputAction.Button}");
 
             // Validate authentication
             var token = TokenStorage.LoadToken();
@@ -51,11 +51,11 @@ namespace Client.Services
 
             try
             {
-                Console.WriteLine("Attempting to send input via SignalR");
+                // Console.WriteLine("Attempting to send input via SignalR");
                 var serializedAction = JsonConvert.SerializeObject(inputAction);
                 await _signalRService.SendInputActionAsync(sessionId, serializedAction);
                 
-                Console.WriteLine("Successfully sent input via SignalR");
+                // Console.WriteLine("Successfully sent input via SignalR");
                 return new ApiResponse { Success = true, Message = "Input sent successfully via SignalR" };
             }
             catch (Exception ex)
