@@ -9,7 +9,7 @@ namespace Client.Helpers
     public static class AppSettings
     {
         public static string ServerIP = "127.0.0.1";
-        //public static string BaseApiUri = "http://localhost:5030";
-         public static string BaseApiUri = "http://192.168.102.91";
+        public static string BaseApiUri = "http://localhost:5030";
+        //  public static string BaseApiUri = "http://192.168.102.91";
     }
 }

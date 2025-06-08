@@ -17,7 +17,8 @@ using Client.Views;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Runtime.InteropServices.ComTypes;
-
+using System.Linq;
+using System.Drawing;
 
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
@@ -34,6 +35,21 @@ namespace Client.Services
         [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int x, int y);
 
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern bool BlockInput(bool fBlockIt);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
         // Mouse event constants
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
@@ -43,6 +59,10 @@ namespace Client.Services
         private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
         private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
         private const uint MOUSEEVENTF_MOVE = 0x0001;
+
+        // Keyboard event constants
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
 
         private WriteableBitmap? _writeableBitmap = null;
 
@@ -66,6 +86,27 @@ namespace Client.Services
         private PropertyChangedEventHandler _signalREventHandler;
         private Action<RemoteVideoTrack> _remoteTrackHandler;
         private bool isSender = true;
+        private bool _isInputBlocked = false;
+        private Rectangle _blockedRegion;
+        private bool _isInBlockedRegion = false;
+        private ScreenCaptureView _streamingWindow;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
         public string ConnectionId
         {
             get => _connectionId;
@@ -212,16 +253,11 @@ namespace Client.Services
             {
                 try
                 {
-                    // Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
                     var action = JsonConvert.DeserializeObject<InputAction>(serializedAction);
-
-                    if (action.Type.ToLower() == "mouse")
+                    if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                     {
-                        ExecuteMouseAction(action);
-                    }
-                    else if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
-
+                    }
                     // Console.WriteLine($"[DEBUG] Parsed action details:\n" +
                     //     $"Type: {action.Type}\n" +
                     //     $"Action: {action.Action}\n" +
@@ -233,11 +269,11 @@ namespace Client.Services
                     //     $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
 
                     // await Task.Delay(100); // Small delay to ensure proper sequencing
-
+                    ExecuteInputAction(action);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Error processing input: {ex.Message}");
+                    Log.Error($"Error processing input: {ex.Message}");
                     await _connection.InvokeAsync("ReportInputError", new
                     {
                         error = ex.Message,
@@ -558,6 +594,7 @@ namespace Client.Services
                     }
                 };
 
+
             };
             if (isSender)
             {
@@ -595,7 +632,7 @@ namespace Client.Services
             try
             {
                 Log.Information("Setting up viewing mode...");
-                streamingWindow = new ScreenCaptureView();
+                streamingWindow = new ScreenCaptureView(this);
                 _videoProcessor = new VideoHelper();
                 streamingWindow.Show();
                 await GetOrCreatePeer();
@@ -755,6 +792,16 @@ namespace Client.Services
                 int absoluteX = (int)((xPercent / 100.0) * screenWidth);
                 int absoluteY = (int)((yPercent / 100.0) * screenHeight);
 
+                // Convert screen coordinates to client coordinates
+                if (_streamingWindow != null)
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(_streamingWindow).Handle;
+                    POINT clientPoint = new POINT { X = absoluteX, Y = absoluteY };
+                    ScreenToClient(handle, ref clientPoint);
+                    absoluteX = clientPoint.X;
+                    absoluteY = clientPoint.Y;
+                }
+
                 // For mouse movement, use SetCursorPos directly as it's more efficient
                 if (action.Action?.ToLower() == "mousemove")
                 {
@@ -845,10 +892,11 @@ namespace Client.Services
                         break;
 
                     case "wheel":
-                        // Handle mouse wheel events
+                        // Handle mouse wheel events with improved sensitivity
                         if (action.Y.HasValue)
                         {
-                            int wheelDelta = (int)(action.Y.Value * 120); // Convert to wheel delta
+                            // Adjust wheel sensitivity (120 is the standard Windows wheel delta)
+                            int wheelDelta = (int)(action.Y.Value * 40); // Reduced multiplier for better control
                             mouse_event(0x0800, 0, 0, (uint)wheelDelta, 0); // MOUSEEVENTF_WHEEL
                         }
                         break;
@@ -870,6 +918,102 @@ namespace Client.Services
             if (value > max) return max;
             return value;
         }
+
+        private void ExecuteKeyboardAction(InputAction action)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(action.Key))
+                {
+                    Log.Error("Keyboard key is null or empty");
+                    return;
+                }
+
+                // Convert string key to virtual key code
+                Keys key;
+                if (!Enum.TryParse(action.Key, true, out key))
+                {
+                    Log.Error($"Invalid key: {action.Key}");
+                    return;
+                }
+
+                // Handle modifier keys
+                if (action.Modifiers != null)
+                {
+                    foreach (var modifier in action.Modifiers)
+                    {
+                        if (Enum.TryParse(modifier, true, out Keys modifierKey))
+                        {
+                            // Press modifier key
+                            keybd_event((byte)modifierKey, 0, 0, 0);
+                        }
+                    }
+                }
+
+                // Execute the main key action
+                switch (action.Action?.ToLower())
+                {
+                    case "keydown":
+                        keybd_event((byte)key, 0, 0, 0);
+                        break;
+
+                    case "keyup":
+                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                        break;
+
+                    case "keypress":
+                        keybd_event((byte)key, 0, 0, 0);
+                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                        break;
+
+                    default:
+                        Log.Error($"Unsupported keyboard action: {action.Action}");
+                        break;
+                }
+
+                // Release modifier keys in reverse order
+                if (action.Modifiers != null)
+                {
+                    var reversedModifiers = action.Modifiers.Reverse();
+                    foreach (var modifier in reversedModifiers)
+                    {
+                        if (Enum.TryParse(modifier, true, out Keys modifierKey))
+                        {
+                            keybd_event((byte)modifierKey, 0, KEYEVENTF_KEYUP, 0);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to execute keyboard action: {ex.Message}");
+            }
+        }
+
+        private void ExecuteInputAction(InputAction action)
+        {
+            if (action == null || string.IsNullOrEmpty(action.Type))
+            {
+                Log.Error("Invalid input action");
+                return;
+            }
+
+            switch (action.Type.ToLower())
+            {
+                case "mouse":
+                    ExecuteMouseAction(action);
+                    break;
+                case "keyboard":
+                    ExecuteKeyboardAction(action);
+                    break;
+                default:
+                    Log.Error($"Unsupported input type: {action.Type}");
+                    break;
+            }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
 
         public void Dispose()
         {

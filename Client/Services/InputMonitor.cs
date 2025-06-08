@@ -57,7 +57,7 @@ namespace Client.Services
 
             try
             {
-                _globalHook = Hook.GlobalEvents();
+                _globalHook = Hook.AppEvents();
 
                 // Initialize keyboard handlers
                 _keyDownHandler = CreateKeyEventHandler("keydown");

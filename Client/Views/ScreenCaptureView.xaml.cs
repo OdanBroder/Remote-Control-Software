@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Diagnostics;
+using Client.Services;
 
 namespace Client.Views
 {
@@ -25,10 +26,12 @@ namespace Client.Views
         private BitmapSource _currentFrame;
         private readonly object _frameLock = new object();
         private bool _isUpdating;
+        private readonly SignalRService _signalRService;
 
-        public ScreenCaptureView()
+        public ScreenCaptureView(SignalRService signalRService)
         {
             InitializeComponent();
+            _signalRService = signalRService;
             _frameTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(16) // ~60 FPS
@@ -36,6 +39,7 @@ namespace Client.Views
             _frameTimer.Tick += FrameTimer_Tick;
             _frameTimer.Start();
         }
+
         private void FrameTimer_Tick(object sender, EventArgs e)
         {
             if (_isUpdating) return;

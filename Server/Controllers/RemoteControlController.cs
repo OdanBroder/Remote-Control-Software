@@ -125,14 +125,25 @@ namespace Server.Controllers
                     });
                 }
 
-                // Only allow host to send input actions
-                if (user.Id != session.HostUserId)
+                // Only allow client to send input actions
+                if (user.Id == session.HostUserId)
                 {
                     return StatusCode(403, new
                     {
                         success = false,
-                        message = "Only host can send input actions",
-                        code = "HOST_ONLY"
+                        message = "Host cannot send input actions",
+                        code = "CLIENT_ONLY"
+                    });
+                }
+
+                // Verify client is connected to this session
+                if (!session.ClientUserId.HasValue || session.ClientUserId.Value != user.Id)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        message = "Client not connected to this session",
+                        code = "NOT_CONNECTED"
                     });
                 }
 
