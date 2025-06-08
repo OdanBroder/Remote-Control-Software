@@ -16,11 +16,13 @@ namespace Client.Services
         private GCHandle _bufferHandle;
         private DateTime _startTime = DateTime.UtcNow;
 
+        private byte[] _argbBuffer;
+        private GCHandle _argbHandle;
+
         private int _currentWidth;
         private int _currentHeight;
         private int _currentStride;
-        public byte[] _yBuffer, _uBuffer, _vBuffer, _aBuffer;
-        GCHandle _yHandle, _uHandle, _vHandle, _aHandle;
+
         public WebRTCService()
         {
             // Tạo video track source từ callback ARGB32
@@ -35,47 +37,31 @@ namespace Client.Services
         /// </summary>
         public void AttachToScreenCapture(ScreenCaptureDXGI capture)
         {
-            capture.OnFrameCaptured += OnI420AFrame;
+            capture.OnFrameCaptured += OnArgbFrame;
         }
 
         /// <summary>
         /// Gọi bởi C++/CLI khi capture được frame
         /// </summary>
-        public void OnI420AFrame(IntPtr yPlane,
-    int width,
-    int height,
-    int stride,
-    IntPtr uPlane,
-    IntPtr vPlane,
-    IntPtr aPlane)
+        public void OnArgbFrame(IntPtr argbBuffer, int width, int height, int stride)
         {
-            int ySize = stride * height;
-            int uvSize = (width / 2) * (height / 2);
+            int bufferSize = stride * height;
+            _argbBuffer = new byte[bufferSize];
 
-            _yBuffer = new byte[ySize];
-            _uBuffer = new byte[uvSize];
-            _vBuffer = new byte[uvSize];
-            _aBuffer = new byte[ySize];
+            // Copy từ unmanaged sang managed
+            Marshal.Copy(argbBuffer, _argbBuffer, 0, bufferSize);
 
-            Marshal.Copy(yPlane, _yBuffer, 0, ySize);
-            Marshal.Copy(uPlane, _uBuffer, 0, uvSize);
-            Marshal.Copy(vPlane, _vBuffer, 0, uvSize);
-            Marshal.Copy(aPlane, _aBuffer, 0, ySize);
+            // Giải phóng handle cũ nếu cần
+            if (_argbHandle.IsAllocated) _argbHandle.Free();
 
-            if (_yHandle.IsAllocated) _yHandle.Free();
-            if (_uHandle.IsAllocated) _uHandle.Free();
-            if (_vHandle.IsAllocated) _vHandle.Free();
-            if (_aHandle.IsAllocated) _aHandle.Free();
-
-            _yHandle = GCHandle.Alloc(_yBuffer, GCHandleType.Pinned);
-            _uHandle = GCHandle.Alloc(_uBuffer, GCHandleType.Pinned);
-            _vHandle = GCHandle.Alloc(_vBuffer, GCHandleType.Pinned);
-            _aHandle = GCHandle.Alloc(_aBuffer, GCHandleType.Pinned);
+            // Pin lại buffer mới
+            _argbHandle = GCHandle.Alloc(_argbBuffer, GCHandleType.Pinned);
 
             _currentWidth = width;
             _currentHeight = height;
             _currentStride = stride;
         }
+
 
         /// <summary>
         /// Gọi bởi WebRTC khi cần frame I420A để gửi
@@ -84,55 +70,40 @@ namespace Client.Services
         {
             try
             {
-                Log.Information("OnFrameRequested: frame requested");
-
-                bool allocated = _yHandle.IsAllocated && _uHandle.IsAllocated && _vHandle.IsAllocated && _aHandle.IsAllocated;
-                Log.Information("Buffer allocation status: Y={Y}, U={U}, V={V}, A={A}",
-                    _yHandle.IsAllocated, _uHandle.IsAllocated, _vHandle.IsAllocated, _aHandle.IsAllocated);
+                bool allocated = _argbHandle.IsAllocated;
 
                 if (!allocated)
                 {
-                    Log.Warning("Skipping frame: One or more buffers not allocated.");
+                    // Nếu chưa có frame nào được capture
                     return;
                 }
 
-                byte* yPtr = (byte*)_yHandle.AddrOfPinnedObject();
-                byte* uPtr = (byte*)_uHandle.AddrOfPinnedObject();
-                byte* vPtr = (byte*)_vHandle.AddrOfPinnedObject();
-                byte* aPtr = (byte*)_aHandle.AddrOfPinnedObject();
+                byte* argbPtr = (byte*)_argbHandle.AddrOfPinnedObject();
 
-                Console.WriteLine($"Detail frame: {_currentWidth}x{_currentHeight}, stride: {_currentStride}");
-
-                var frame = new I420AVideoFrame
+                var frame = new Argb32VideoFrame
                 {
                     width = (uint)_currentWidth,
                     height = (uint)_currentHeight,
-                    dataY = (IntPtr)yPtr,
-                    dataU = (IntPtr)uPtr,
-                    dataV = (IntPtr)vPtr,
-                    dataA = (IntPtr)aPtr,
-                    strideY = _currentStride,
-                    strideU = (_currentWidth / 2),
-                    strideV = (_currentWidth / 2),
-                    strideA = _currentStride
+                    data = (IntPtr)argbPtr,
+                    stride = _currentStride
                 };
 
                 try
                 {
-                    Console.WriteLine("OnFrameRequested: Complete Request!");
                     request.CompleteRequest(in frame);
                 }
                 catch (Exception innerEx)
                 {
-                    Log.Error("Failed to complete request: {msg}", innerEx.Message);
+                    Log.Error("Failed to complete ARGB request: {msg}", innerEx.Message);
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("Error with requested frame: {err}", ex);
+                Log.Error("Error with ARGB requested frame: {err}", ex);
                 throw new InvalidOperationException(ex.Message);
             }
         }
+
 
 
         /// <summary>
@@ -141,7 +112,7 @@ namespace Client.Services
         public LocalVideoTrack CreateLocalVideoTrack()
         {
             // Tạo ExternalVideoTrackSource từ callback
-            var trackSource = ExternalVideoTrackSource.CreateFromI420ACallback(OnFrameRequested);
+            var trackSource = ExternalVideoTrackSource.CreateFromArgb32Callback(OnFrameRequested);
             var config = new LocalVideoTrackInitConfig { trackName = "video_track" };
             var localVideoTrack = LocalVideoTrack.CreateFromSource(trackSource, config);
 

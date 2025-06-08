@@ -456,7 +456,7 @@ namespace Client.Services
             {
                 _capture = new ScreenCaptureDXGI();
                 _webrtcClient = new WebRTCService();
-                _capture.OnFrameCaptured += _webrtcClient.OnI420AFrame;
+                _capture.OnFrameCaptured += _webrtcClient.OnArgbFrame;
                 var localtrack = _webrtcClient.CreateLocalVideoTrack();
                 // Tạo Transceiver với video track
                 var transceiverInit = new TransceiverInitSettings
@@ -512,39 +512,19 @@ namespace Client.Services
             {
                 Log.Information("Video track added: {Name}", track.Name);
 
-                track.I420AVideoFrameReady += frame =>
+                track.Argb32VideoFrameReady += frame =>
                 {
                     try
                     {
                         int width = (int)frame.width;
                         int height = (int)frame.height;
+                        int stride = (int)frame.stride;
+                        int bufferSize = stride * height;
 
-                        Log.Information("Processing frame: {Width}x{Height}", width, height);
+                        Log.Information("Processing ARGB frame: {Width}x{Height}, stride={Stride}", width, height, stride);
 
-                        // Convert I420A to RGB byte[] (your existing method)
-                        byte[]? rgbData = null;
-                        bool success = VideoProcessor.ConvertI420AToRGB(
-                            frame.dataY, frame.strideY,
-                            frame.dataU, frame.strideU,
-                            frame.dataV, frame.strideV,
-                            frame.dataA, frame.strideA,
-                            width, height,
-                            ref rgbData);
-                        Log.Information("Calling ConvertI420AToBGRA: W={0}, H={1}, Ystride={2}, Ustride={3}, Vstride={4}, Astride={5}",
-                        frame.width, frame.height, frame.strideY, frame.strideU, frame.strideV, frame.strideA);
-
-                        Log.Information("Pointers: Y={0}, U={1}, V={2}, A={3}",
-                            frame.dataY, frame.dataU, frame.dataV, frame.dataA);
-
-                        if (!success)
-                        {
-                            Log.Warning("Libyuv unable to convert");
-                        }
-                        if (!success || rgbData == null)
-                        {
-                            Log.Warning("Failed to convert I420A to RGB");
-                            return;
-                        }
+                        byte[] argbData = new byte[bufferSize];
+                        Marshal.Copy(frame.data, argbData, 0, bufferSize);
 
                         if (streamingWindow != null)
                         {
@@ -552,46 +532,43 @@ namespace Client.Services
                             {
                                 try
                                 {
-                                    // Create WriteableBitmap once
-                                    if (_writeableBitmap == null)
+                                    if (_writeableBitmap == null ||
+                                        _writeableBitmap.PixelWidth != width ||
+                                        _writeableBitmap.PixelHeight != height)
                                     {
                                         _writeableBitmap = new WriteableBitmap(
                                             width,
                                             height,
                                             96,
                                             96,
-                                        PixelFormats.Bgr24,
+                                            PixelFormats.Bgra32, // hoặc PixelFormats.Pbgra32 nếu có alpha premultiplied
                                             null);
+
                                         streamingWindow.CaptureImage.Source = _writeableBitmap;
                                     }
-
-                                    // Update pixels in WriteableBitmap
                                     _writeableBitmap.Lock();
 
-                                    // Copy rgbData into back buffer
-                                    System.Runtime.InteropServices.Marshal.Copy(
-                                        rgbData, 0, _writeableBitmap.BackBuffer, rgbData.Length);
+                                    Marshal.Copy(argbData, 0, _writeableBitmap.BackBuffer, argbData.Length);
 
-                                    // Indicate the area updated
                                     _writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
                                     _writeableBitmap.Unlock();
 
-                                    Log.Debug("Frame updated successfully (WriteableBitmap)");
+                                    Log.Debug("ARGB frame rendered successfully.");
                                 }
                                 catch (Exception ex)
                                 {
-                                    Log.Error(ex, "Error updating frame in UI");
+                                    Log.Error(ex, "Error rendering ARGB frame to UI.");
                                 }
                             }));
                         }
                         else
                         {
-                            Log.Warning("Streaming window is not ready");
+                            Log.Warning("Streaming window not ready.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "Error processing video frame");
+                        Log.Error(ex, "Error processing ARGB video frame.");
                     }
                 };
 
