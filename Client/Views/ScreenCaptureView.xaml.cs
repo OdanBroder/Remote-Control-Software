@@ -38,8 +38,6 @@ namespace Client.Views
             };
             _frameTimer.Tick += FrameTimer_Tick;
             _frameTimer.Start();
-            Loaded += ScreenCaptureView_Loaded;
-            Closing += ScreenCaptureView_Closing;
         }
 
         private void FrameTimer_Tick(object sender, EventArgs e)
@@ -75,16 +73,6 @@ namespace Client.Views
                 _currentFrame = null;
             }
             base.OnClosed(e);
-        }
-
-        private void ScreenCaptureView_Loaded(object sender, RoutedEventArgs e)
-        {
-            _signalRService.SetStreamingWindow(this);
-        }
-
-        private void ScreenCaptureView_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            _signalRService.SetStreamingWindow(null);
         }
     }
 }

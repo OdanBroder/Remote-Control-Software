@@ -90,7 +90,6 @@ namespace Client.Services
         private Rectangle _blockedRegion;
         private bool _isInBlockedRegion = false;
         private ScreenCaptureView _streamingWindow;
-        private bool _isStreamingActive = false;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -745,85 +744,6 @@ namespace Client.Services
             await _connection.InvokeAsync("SendInputAction", sessionId, serializedAction);
         }
 
-        public void SetInputBlocked(bool blocked, Rectangle? region = null)
-        {
-            _isInputBlocked = blocked;
-            if (region.HasValue)
-            {
-                _blockedRegion = region.Value;
-            }
-            BlockInput(blocked);
-        }
-
-        private bool IsInBlockedRegion(int x, int y)
-        {
-            if (!_isInputBlocked) return false;
-            return _blockedRegion.Contains(x, y);
-        }
-
-        public void SetStreamingWindow(ScreenCaptureView window)
-        {
-            _streamingWindow = window;
-            _isStreamingActive = window != null;
-            if (window != null)
-            {
-                UpdateBlockedRegion();
-                // Subscribe to window size/location changes
-                window.SizeChanged += Window_SizeChanged;
-                window.LocationChanged += Window_LocationChanged;
-            }
-        }
-
-        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            UpdateBlockedRegion();
-        }
-
-        private void Window_LocationChanged(object sender, EventArgs e)
-        {
-            UpdateBlockedRegion();
-        }
-
-        private void UpdateBlockedRegion()
-        {
-            if (_streamingWindow == null || !_isStreamingActive) return;
-
-            try
-            {
-                var handle = new System.Windows.Interop.WindowInteropHelper(_streamingWindow).Handle;
-                RECT clientRect;
-                if (GetClientRect(handle, out clientRect))
-                {
-                    // Convert client coordinates to screen coordinates
-                    POINT topLeft = new POINT { X = clientRect.Left, Y = clientRect.Top };
-                    POINT bottomRight = new POINT { X = clientRect.Right, Y = clientRect.Bottom };
-                    
-                    ClientToScreen(handle, ref topLeft);
-                    ClientToScreen(handle, ref bottomRight);
-
-                    _blockedRegion = new Rectangle(
-                        topLeft.X,
-                        topLeft.Y,
-                        bottomRight.X - topLeft.X,
-                        bottomRight.Y - topLeft.Y
-                    );
-                    _isInputBlocked = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to update blocked region: {ex.Message}");
-            }
-        }
-
-        private bool IsInStreamingWindow(int x, int y)
-        {
-            if (!_isStreamingActive || _streamingWindow == null) return false;
-            
-            // Check if the point is within the window's client area
-            return _blockedRegion.Contains(x, y);
-        }
-
         private void ExecuteMouseAction(InputAction action)
         {
             try
@@ -847,13 +767,6 @@ namespace Client.Services
                 // Convert percentage coordinates to absolute screen coordinates
                 int absoluteX = (int)((xPercent / 100.0) * screenWidth);
                 int absoluteY = (int)((yPercent / 100.0) * screenHeight);
-
-                // Only allow input within the streaming window
-                if (!IsInStreamingWindow(absoluteX, absoluteY))
-                {
-                    Log.Debug("Mouse action outside streaming window");
-                    return;
-                }
 
                 // Convert screen coordinates to client coordinates
                 if (_streamingWindow != null)
@@ -986,13 +899,6 @@ namespace Client.Services
         {
             try
             {
-                // Only allow keyboard input when streaming is active
-                if (!_isStreamingActive)
-                {
-                    Log.Debug("Keyboard action blocked - streaming not active");
-                    return;
-                }
-
                 if (string.IsNullOrEmpty(action.Key))
                 {
                     Log.Error("Keyboard key is null or empty");
@@ -1065,13 +971,6 @@ namespace Client.Services
             if (action == null || string.IsNullOrEmpty(action.Type))
             {
                 Log.Error("Invalid input action");
-                return;
-            }
-
-            // Only allow input when streaming is active
-            if (!_isStreamingActive)
-            {
-                Log.Debug("Input action blocked - streaming not active");
                 return;
             }
 
