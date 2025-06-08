@@ -80,6 +80,7 @@ public class FileTransferViewModel : INotifyPropertyChanged
         Status = "Requesting server to prepare TCP session...";
         var (success, port, sessionId, msg) = await _service.InitiateTcpTransferAsync(SessionId, SelectedFileName, fileInfo.Length);
 
+        Console.WriteLine($"[FileTransfer] Initiated TCP transfer: Success={success}, Port={port}, SessionId={sessionId}, Message={msg}");
         if (!success)
         {
             Status = "Failed to initiate transfer: " + msg;
