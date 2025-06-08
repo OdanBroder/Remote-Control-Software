@@ -18,6 +18,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Runtime.InteropServices.ComTypes;
 using System.Linq;
+using System.Drawing;
 
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
@@ -36,6 +37,18 @@ namespace Client.Services
 
         [DllImport("user32.dll")]
         private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern bool BlockInput(bool fBlockIt);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
 
         // Mouse event constants
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
@@ -73,6 +86,28 @@ namespace Client.Services
         private PropertyChangedEventHandler _signalREventHandler;
         private Action<RemoteVideoTrack> _remoteTrackHandler;
         private bool isSender = true;
+        private bool _isInputBlocked = false;
+        private Rectangle _blockedRegion;
+        private bool _isInBlockedRegion = false;
+        private ScreenCaptureView _streamingWindow;
+        private bool _isStreamingActive = false;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
         public string ConnectionId
         {
             get => _connectionId;
@@ -597,7 +632,7 @@ namespace Client.Services
             try
             {
                 Log.Information("Setting up viewing mode...");
-                streamingWindow = new ScreenCaptureView();
+                streamingWindow = new ScreenCaptureView(this);
                 _videoProcessor = new VideoHelper();
                 streamingWindow.Show();
                 await GetOrCreatePeer();
@@ -733,6 +768,85 @@ namespace Client.Services
             await _connection.InvokeAsync("SendInputAction", sessionId, serializedAction);
         }
 
+        public void SetInputBlocked(bool blocked, Rectangle? region = null)
+        {
+            _isInputBlocked = blocked;
+            if (region.HasValue)
+            {
+                _blockedRegion = region.Value;
+            }
+            BlockInput(blocked);
+        }
+
+        private bool IsInBlockedRegion(int x, int y)
+        {
+            if (!_isInputBlocked) return false;
+            return _blockedRegion.Contains(x, y);
+        }
+
+        public void SetStreamingWindow(ScreenCaptureView window)
+        {
+            _streamingWindow = window;
+            _isStreamingActive = window != null;
+            if (window != null)
+            {
+                UpdateBlockedRegion();
+                // Subscribe to window size/location changes
+                window.SizeChanged += Window_SizeChanged;
+                window.LocationChanged += Window_LocationChanged;
+            }
+        }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateBlockedRegion();
+        }
+
+        private void Window_LocationChanged(object sender, EventArgs e)
+        {
+            UpdateBlockedRegion();
+        }
+
+        private void UpdateBlockedRegion()
+        {
+            if (_streamingWindow == null || !_isStreamingActive) return;
+
+            try
+            {
+                var handle = new System.Windows.Interop.WindowInteropHelper(_streamingWindow).Handle;
+                RECT clientRect;
+                if (GetClientRect(handle, out clientRect))
+                {
+                    // Convert client coordinates to screen coordinates
+                    POINT topLeft = new POINT { X = clientRect.Left, Y = clientRect.Top };
+                    POINT bottomRight = new POINT { X = clientRect.Right, Y = clientRect.Bottom };
+                    
+                    ClientToScreen(handle, ref topLeft);
+                    ClientToScreen(handle, ref bottomRight);
+
+                    _blockedRegion = new Rectangle(
+                        topLeft.X,
+                        topLeft.Y,
+                        bottomRight.X - topLeft.X,
+                        bottomRight.Y - topLeft.Y
+                    );
+                    _isInputBlocked = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to update blocked region: {ex.Message}");
+            }
+        }
+
+        private bool IsInStreamingWindow(int x, int y)
+        {
+            if (!_isStreamingActive || _streamingWindow == null) return false;
+            
+            // Check if the point is within the window's client area
+            return _blockedRegion.Contains(x, y);
+        }
+
         private void ExecuteMouseAction(InputAction action)
         {
             try
@@ -756,6 +870,23 @@ namespace Client.Services
                 // Convert percentage coordinates to absolute screen coordinates
                 int absoluteX = (int)((xPercent / 100.0) * screenWidth);
                 int absoluteY = (int)((yPercent / 100.0) * screenHeight);
+
+                // Only allow input within the streaming window
+                if (!IsInStreamingWindow(absoluteX, absoluteY))
+                {
+                    Log.Debug("Mouse action outside streaming window");
+                    return;
+                }
+
+                // Convert screen coordinates to client coordinates
+                if (_streamingWindow != null)
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(_streamingWindow).Handle;
+                    POINT clientPoint = new POINT { X = absoluteX, Y = absoluteY };
+                    ScreenToClient(handle, ref clientPoint);
+                    absoluteX = clientPoint.X;
+                    absoluteY = clientPoint.Y;
+                }
 
                 // For mouse movement, use SetCursorPos directly as it's more efficient
                 if (action.Action?.ToLower() == "mousemove")
@@ -847,10 +978,11 @@ namespace Client.Services
                         break;
 
                     case "wheel":
-                        // Handle mouse wheel events
+                        // Handle mouse wheel events with improved sensitivity
                         if (action.Y.HasValue)
                         {
-                            int wheelDelta = (int)(action.Y.Value * 120); // Convert to wheel delta
+                            // Adjust wheel sensitivity (120 is the standard Windows wheel delta)
+                            int wheelDelta = (int)(action.Y.Value * 40); // Reduced multiplier for better control
                             mouse_event(0x0800, 0, 0, (uint)wheelDelta, 0); // MOUSEEVENTF_WHEEL
                         }
                         break;
@@ -877,6 +1009,13 @@ namespace Client.Services
         {
             try
             {
+                // Only allow keyboard input when streaming is active
+                if (!_isStreamingActive)
+                {
+                    Log.Debug("Keyboard action blocked - streaming not active");
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(action.Key))
                 {
                     Log.Error("Keyboard key is null or empty");
@@ -952,6 +1091,13 @@ namespace Client.Services
                 return;
             }
 
+            // Only allow input when streaming is active
+            if (!_isStreamingActive)
+            {
+                Log.Debug("Input action blocked - streaming not active");
+                return;
+            }
+
             switch (action.Type.ToLower())
             {
                 case "mouse":
@@ -965,6 +1111,9 @@ namespace Client.Services
                     break;
             }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
 
         public void Dispose()
         {

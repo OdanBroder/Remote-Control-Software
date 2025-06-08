@@ -157,18 +157,18 @@ namespace Server.Hubs
                     return new { success = false, message = "Session is not active", code = "SESSION_INACTIVE" };
                 }
 
-                // Check if client is connected
-                if (string.IsNullOrEmpty(session.ClientConnectionId))
+                // Check if host is connected
+                if (string.IsNullOrEmpty(session.HostConnectionId))
                 {
-                    _logger.LogWarning($"Client is not connected for session: {sessionId}");
-                    return new { success = false, message = "Client is not connected", code = "CLIENT_DISCONNECTED" };
+                    _logger.LogWarning($"Host is not connected for session: {sessionId}");
+                    return new { success = false, message = "Host is not connected", code = "HOST_DISCONNECTED" };
                 }
 
-                // Only allow host to send input actions
-                if (user.Id != session.HostUserId)
+                // Only allow client to send input actions
+                if (user.Id != session.ClientUserId)
                 {
-                    _logger.LogWarning($"Non-host user attempted to send input: {userId}");
-                    return new { success = false, message = "Only host can send input actions", code = "NOT_HOST" };
+                    _logger.LogWarning($"Non-client user attempted to send input: {userId}");
+                    return new { success = false, message = "Only client can send input actions", code = "NOT_CLIENT" };
                 }
 
                 // Validate the input action
@@ -183,13 +183,12 @@ namespace Server.Hubs
                 _context.InputActions.Add(inputAction);
                 await _context.SaveChangesAsync();
 
-                await Clients.Client(session.ClientConnectionId).SendAsync("ReceiveInput", action);
+                await Clients.Client(session.HostConnectionId).SendAsync("ReceiveInput", action);
                                 
                 return new { success = true, message = "Input action sent successfully", code = "INPUT_SENT" };
             }
             catch (Exception ex)
             {
-
                 _logger.LogError(ex, $"Error sending input action for session: {sessionId}");
                 return new { success = false, message = "Failed to send input action: " + ex.Message, code = "INPUT_ERROR" };
             }
