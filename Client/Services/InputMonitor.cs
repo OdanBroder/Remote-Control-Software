@@ -227,9 +227,10 @@ namespace Client.Services
                     {
                         Type = "mouse",
                         Action = actionName,
-                        Button = actionName == "mousemove" ? "None" : e.Button.ToString(),
+                        Button = actionName == "mousemove" ? "None" : 
+                                actionName == "wheel" ? "wheel" : e.Button.ToString(),
                         X = (int)relativeX,
-                        Y = (int)relativeY,
+                        Y = actionName == "wheel" ? e.Delta : (int)relativeY,
                         Modifiers = GetModifierKeys()
                     };
 
