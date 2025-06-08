@@ -19,11 +19,14 @@ namespace Client.Services
         private readonly SendInputServices _inputSender;
         private bool _isDisposed;
         private Stopwatch _lastMouseMoveTime;
-        private const int MOUSE_MOVE_THROTTLE_MS = 16; // ~60fps
+        private const int MOUSE_MOVE_THROTTLE_MS = 8; // Increased to ~120fps for better responsiveness
         private Point _lastMousePosition;
+        private bool _isMouseDown = false;
+        private MouseButtons _lastMouseButton = MouseButtons.None;
 
         // Event handlers
         private KeyEventHandler _keyDownHandler;
+        private KeyEventHandler _keyUpHandler;
         private MouseEventHandler _mouseDownHandler;
         private MouseEventHandler _mouseUpHandler;
         private MouseEventHandler _mouseClickHandler;
@@ -56,25 +59,9 @@ namespace Client.Services
             {
                 _globalHook = Hook.GlobalEvents();
 
-                // Initialize keyboard handler
-                _keyDownHandler = async (s, e) =>
-                {
-                    var action = new InputAction
-                    {
-                        Type = "keyboard",
-                        Action = "keydown",
-                        Key = e.KeyCode.ToString()
-                    };
-                    try
-                    {
-                        await _inputSender.SendInputAsync(action);
-                    }
-                    catch (Exception ex)
-                    {
-                        Stop();
-                        Console.WriteLine($"Error while sending keyboard action: {ex.Message}");
-                    }
-                };
+                // Initialize keyboard handlers
+                _keyDownHandler = CreateKeyEventHandler("keydown");
+                _keyUpHandler = CreateKeyEventHandler("keyup");
 
                 // Initialize mouse handlers
                 _mouseDownHandler = CreateMouseEventHandler("mousedown");
@@ -113,9 +100,9 @@ namespace Client.Services
                         return;
                     }
 
-                    // Check if position has changed significantly (optional)
-                    if (Math.Abs(e.X - _lastMousePosition.X) < 2 && 
-                        Math.Abs(e.Y - _lastMousePosition.Y) < 2)
+                    // Check if position has changed significantly
+                    if (Math.Abs(e.X - _lastMousePosition.X) < 1 && 
+                        Math.Abs(e.Y - _lastMousePosition.Y) < 1)
                     {
                         return;
                     }
@@ -155,6 +142,30 @@ namespace Client.Services
             };
         }
 
+        private KeyEventHandler CreateKeyEventHandler(string actionName)
+        {
+            return async (s, e) =>
+            {
+                var action = new InputAction
+                {
+                    Type = "keyboard",
+                    Action = actionName,
+                    Key = e.KeyCode.ToString(),
+                    Modifiers = GetModifierKeys()
+                };
+
+                try
+                {
+                    await _inputSender.SendInputAsync(action);
+                }
+                catch (Exception ex)
+                {
+                    Stop();
+                    Console.WriteLine($"Error while sending keyboard action: {ex.Message}");
+                }
+            };
+        }
+
         private string[] GetModifierKeys()
         {
             var modifiers = new List<string>();
@@ -170,6 +181,7 @@ namespace Client.Services
         private void SubscribeToEvents()
         {
             _globalHook.KeyDown += _keyDownHandler;
+            _globalHook.KeyUp += _keyUpHandler;
             _globalHook.MouseDown += _mouseDownHandler;
             _globalHook.MouseUp += _mouseUpHandler;
             _globalHook.MouseClick += _mouseClickHandler;
@@ -206,6 +218,7 @@ namespace Client.Services
         private void UnsubscribeFromEvents()
         {
             _globalHook.KeyDown -= _keyDownHandler;
+            _globalHook.KeyUp -= _keyUpHandler;
             _globalHook.MouseDown -= _mouseDownHandler;
             _globalHook.MouseUp -= _mouseUpHandler;
             _globalHook.MouseClick -= _mouseClickHandler;

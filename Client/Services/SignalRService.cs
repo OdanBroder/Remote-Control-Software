@@ -232,7 +232,7 @@ namespace Client.Services
                         $"Button: {action.Button ?? "N/A"}\n" +
                         $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
 
-                    await Task.Delay(100); // Small delay to ensure proper sequencing
+                    // await Task.Delay(100); // Small delay to ensure proper sequencing
 
                 }
                 catch (Exception ex)
@@ -735,8 +735,6 @@ namespace Client.Services
         {
             try
             {
-                Log.Information($"Executing mouse action: {JsonConvert.SerializeObject(action)}");
-
                 // Validate coordinates
                 if (!action.X.HasValue || !action.Y.HasValue)
                 {
@@ -764,7 +762,7 @@ namespace Client.Services
                     return;
                 }
 
-                // For clicks, use mouse_event with absolute coordinates
+                // For clicks and other actions
                 switch (action.Action?.ToLower())
                 {
                     case "mousedown":
@@ -802,6 +800,56 @@ namespace Client.Services
                             default:
                                 Log.Error($"Unsupported mouse button: {action.Button}");
                                 return;
+                        }
+                        break;
+
+                    case "click":
+                        SetCursorPos(absoluteX, absoluteY);
+                        switch (action.Button?.ToLower())
+                        {
+                            case "left":
+                                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                                break;
+                            case "right":
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+                                break;
+                            case "middle":
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
+                                break;
+                            default:
+                                Log.Error($"Unsupported mouse button: {action.Button}");
+                                return;
+                        }
+                        break;
+
+                    case "doubleclick":
+                        SetCursorPos(absoluteX, absoluteY);
+                        switch (action.Button?.ToLower())
+                        {
+                            case "left":
+                                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                                mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                                break;
+                            case "right":
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+                                mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+                                break;
+                            case "middle":
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
+                                mouse_event(MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
+                                break;
+                            default:
+                                Log.Error($"Unsupported mouse button: {action.Button}");
+                                return;
+                        }
+                        break;
+
+                    case "wheel":
+                        // Handle mouse wheel events
+                        if (action.Y.HasValue)
+                        {
+                            int wheelDelta = (int)(action.Y.Value * 120); // Convert to wheel delta
+                            mouse_event(0x0800, 0, 0, (uint)wheelDelta, 0); // MOUSEEVENTF_WHEEL
                         }
                         break;
 
