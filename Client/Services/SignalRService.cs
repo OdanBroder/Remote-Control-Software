@@ -212,7 +212,7 @@ namespace Client.Services
             {
                 try
                 {
-                    Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
+                    // Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
                     var action = JsonConvert.DeserializeObject<InputAction>(serializedAction);
 
                     if (action.Type.ToLower() == "mouse")
@@ -222,15 +222,15 @@ namespace Client.Services
                     else if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
 
-                    Console.WriteLine($"[DEBUG] Parsed action details:\n" +
-                        $"Type: {action.Type}\n" +
-                        $"Action: {action.Action}\n" +
-                        $"Key: {action.Key ?? "N/A"}\n" +
-                        $"Modifiers: {JsonConvert.SerializeObject(action.Modifiers ?? new string[0])}\n" +
-                        $"X: {action.X ?? -1}\n" +
-                        $"Y: {action.Y ?? -1}\n" +
-                        $"Button: {action.Button ?? "N/A"}\n" +
-                        $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
+                    // Console.WriteLine($"[DEBUG] Parsed action details:\n" +
+                    //     $"Type: {action.Type}\n" +
+                    //     $"Action: {action.Action}\n" +
+                    //     $"Key: {action.Key ?? "N/A"}\n" +
+                    //     $"Modifiers: {JsonConvert.SerializeObject(action.Modifiers ?? new string[0])}\n" +
+                    //     $"X: {action.X ?? -1}\n" +
+                    //     $"Y: {action.Y ?? -1}\n" +
+                    //     $"Button: {action.Button ?? "N/A"}\n" +
+                    //     $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
 
                     // await Task.Delay(100); // Small delay to ensure proper sequencing
 
