@@ -219,16 +219,11 @@ namespace Client.Services
             {
                 try
                 {
-                    // Console.WriteLine($"[DEBUG] Received input action: {serializedAction}");
                     var action = JsonConvert.DeserializeObject<InputAction>(serializedAction);
-
-                    if (action.Type.ToLower() == "mouse")
+                    if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                     {
-                        ExecuteMouseAction(action);
-                    }
-                    else if (action == null || string.IsNullOrWhiteSpace(action.Type) || string.IsNullOrWhiteSpace(action.Action))
                         throw new Exception("Invalid input action format");
-
+                    }
                     // Console.WriteLine($"[DEBUG] Parsed action details:\n" +
                     //     $"Type: {action.Type}\n" +
                     //     $"Action: {action.Action}\n" +
@@ -240,11 +235,11 @@ namespace Client.Services
                     //     $"Full Action: {JsonConvert.SerializeObject(action, Formatting.Indented)}");
 
                     // await Task.Delay(100); // Small delay to ensure proper sequencing
-
+                    ExecuteInputAction(action);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Error processing input: {ex.Message}");
+                    Log.Error($"Error processing input: {ex.Message}");
                     await _connection.InvokeAsync("ReportInputError", new
                     {
                         error = ex.Message,
