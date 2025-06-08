@@ -287,7 +287,6 @@ namespace Server.Hubs
             }
         }
 
-
         public async Task SendWebRTCState(string sessionId, string state)
         {
             try
@@ -398,6 +397,11 @@ namespace Server.Hubs
                 transfer.ErrorMessage = "Transfer rejected by receiver";
                 await _context.SaveChangesAsync();
 
+                if (transfer.Session.HostConnectionId != null)
+                {
+                    await Clients.Client(transfer.Session.HostConnectionId)
+                        .SendAsync("FileTransferRejected", transferId);
+                }
             }
             catch (Exception ex)
             {

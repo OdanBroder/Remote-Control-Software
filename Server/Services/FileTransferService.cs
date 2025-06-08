@@ -69,9 +69,9 @@ namespace Server.Services
                 .Include(s => s.ClientUser)
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
 
-            if (session?.ClientConnectionId != null)
+            if (session?.HostConnectionId != null)
             {
-                await _hubContext.Clients.Client(session.ClientConnectionId)
+                await _hubContext.Clients.Client(session.HostConnectionId)
                     .SendAsync("FileTransferRequested", transfer.Id, fileName, fileSize);
             }
 
@@ -261,7 +261,7 @@ namespace Server.Services
                 _fileSizes[sessionId] = fileSize;
 
                 // Start listening for sender in background
-                await Task.Run(async () => await ListenForSender(sessionId, _listenerTokens[sessionId].Token));
+                _ = Task.Run(async () => await ListenForSender(sessionId, _listenerTokens[sessionId].Token));
 
                 return (true, "TCP file transfer started", senderPort);
             }

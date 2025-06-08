@@ -1,10 +1,12 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Server.Services;
 using Server.Data;
 using System.Security.Claims;
 using System.Net.Mime;
+using Microsoft.AspNetCore.SignalR;
+using Server.Hubs;
 
 namespace Server.Controllers
 {
@@ -16,15 +18,18 @@ namespace Server.Controllers
         private readonly FileTransferService _fileTransferService;
         private readonly AppDbContext _context;
         private readonly ILogger<FileTransferController> _logger;
+        private readonly IHubContext<RemoteControlHub> _hubContext;
 
         public FileTransferController(
             FileTransferService fileTransferService,
             AppDbContext context,
-            ILogger<FileTransferController> logger)
+            ILogger<FileTransferController> logger,
+            IHubContext<RemoteControlHub> hubContext)
         {
             _fileTransferService = fileTransferService;
             _context = context;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         [HttpPost("initiate")]
@@ -189,6 +194,27 @@ namespace Server.Controllers
         {
             try
             {
+                var senderIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? throw new UnauthorizedAccessException("User ID claim not found");
+                var senderUserId = Guid.Parse(senderIdClaim);
+
+                var session = await _context.RemoteSessions
+                    .Include(s => s.HostUser)
+                    .Include(s => s.ClientUser)
+                    .FirstOrDefaultAsync(s => s.SessionIdentifier == sessionId)
+                    ?? throw new KeyNotFoundException($"Session {sessionId} not found");
+
+                var receiverUserId = senderUserId == session.HostUserId
+                    ? session.ClientUserId ?? throw new InvalidOperationException("No client connected to session")
+                    : session.HostUserId;
+
+                var transfer = await _fileTransferService.InitiateFileTransfer(
+                    session.Id,
+                    senderUserId,
+                    receiverUserId,
+                    fileName,
+                    fileSize);
+
                 var result = await _fileTransferService.StartTcpFileTransfer(sessionId, fileName, fileSize);
                 if (!result.success)
                 {
@@ -206,7 +232,7 @@ namespace Server.Controllers
                     code = "TCP_TRANSFER_INITIATED",
                     data = new
                     {
-                        id = Guid.NewGuid().ToString(),
+                        id = transfer.Id,
                         port = result.port
                     }
                 });
@@ -253,6 +279,51 @@ namespace Server.Controllers
                     code = "RECEIVER_CONNECT_ERROR"
                 });
             }
+        }
+        [HttpPost("accept/{transferId}")]
+        public async Task<IActionResult> AcceptFileTransfer(int transferId)
+        {
+            var transfer = await _context.FileTransfers.FindAsync(transferId);
+            if (transfer == null)
+                return NotFound(new { success = false, message = "Transfer not found" });
+
+            transfer.Status = "accepted";
+            await _context.SaveChangesAsync();
+
+            var session = await _context.RemoteSessions
+                .Include(s => s.HostUser)
+                .Include(s => s.ClientUser)
+                .FirstOrDefaultAsync(s => s.Id == transfer.SessionId);
+
+            if (session?.HostConnectionId != null)
+            {
+                await _hubContext.Clients.Client(session.HostConnectionId)
+                    .SendAsync("FileTransferAccepted", transfer.Id);
+            }
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("reject/{transferId}")]
+        public async Task<IActionResult> RejectFileTransfer(int transferId)
+        {
+            var transfer = await _context.FileTransfers.FindAsync(transferId);
+            if (transfer == null)
+                return NotFound(new { success = false, message = "Transfer not found" });
+
+            transfer.Status = "rejected";
+            await _context.SaveChangesAsync();
+
+            var session = await _context.RemoteSessions
+                .Include(s => s.HostUser)
+                .Include(s => s.ClientUser)
+                .FirstOrDefaultAsync(s => s.Id == transfer.SessionId);
+
+            if (session?.HostConnectionId != null)
+            {
+                await _hubContext.Clients.Client(session.HostConnectionId)
+                    .SendAsync("FileTransferRejected", transfer.Id);
+            }
+            return Ok(new { success = true });
         }
     }
 } 

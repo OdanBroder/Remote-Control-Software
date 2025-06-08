@@ -18,6 +18,8 @@ using ScreenCaptureI420A;
 using Client.Views;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using System.Runtime.InteropServices.ComTypes;
+
 
 namespace Client.Services
 {
@@ -279,6 +281,41 @@ namespace Client.Services
                 }
             });
 
+            _connection.On<int, string, long>("FileTransferRequested", (transferId, fileName, fileSize) =>
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var vm = new FileReceiveRequestViewModel
+                    {
+                        TransferId = transferId,
+                        FileName = fileName,
+                        FileSize = fileSize
+                    };
+                    var dialog = new FileReceiveRequestView(vm);
+                    var result = dialog.ShowDialog();
+
+                    if (result == true)
+                    {
+                        _ = AcceptFileTransfer(transferId);
+                    }
+                    else
+                    {
+                        _ = RejectFileTransfer(transferId);
+                    }
+                });
+            });
+
+            _connection.On<int>("FileTransferAccepted", transferId =>
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var vm = new FileTransferViewModel();
+                    //var view = new FileTransferView(vm);
+
+                    vm.StartTcpFileTransfer(transferId);
+                });
+            });
+
             _connection.Reconnecting += error =>
             {
                 Log.Information("Connection lost. Reconnecting... Error: {Error}", error);
@@ -306,6 +343,21 @@ namespace Client.Services
             };
         }
 
+        public async Task AcceptFileTransfer(int transferId)
+        {
+            if (_connection != null && _connection.State == HubConnectionState.Connected)
+            {
+                await _connection.InvokeAsync("AcceptFileTransfer", transferId);
+            }
+        }
+
+        public async Task RejectFileTransfer(int transferId)
+        {
+            if (_connection != null && _connection.State == HubConnectionState.Connected)
+            {
+                await _connection.InvokeAsync("RejectFileTransfer", transferId);
+            }
+        }
         public async Task<ApiResponse> StartStreaming(bool isStreamer = true)
         {
             try

@@ -1,0 +1,106 @@
+﻿<Window x:Class="Client.Views.FileReceiveRequestView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
+        Title="Incoming File"
+        Height="260" Width="420"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="DialogBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#fafcff" Offset="0"/>
+            <GradientStop Color="#e8eefd" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="Accent" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#6a82fb" Offset="0" />
+            <GradientStop Color="#fc5c7d" Offset="1" />
+        </LinearGradientBrush>
+        <DropShadowEffect x:Key="Shadow" BlurRadius="18" ShadowDepth="0" Color="#405585" Opacity="0.18"/>
+    </Window.Resources>
+    <Grid Background="#00000000">
+        <Border
+            Background="{StaticResource DialogBg}"
+            CornerRadius="14"
+            Padding="28"
+            Effect="{StaticResource Shadow}"
+            BorderBrush="#E3E6EF"
+            BorderThickness="1"
+            MouseLeftButtonDown="Border_MouseLeftButtonDown">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                    <fa:IconImage Icon="FileAlt" Width="32" Height="32" Margin="0,0,14,0" Foreground="{StaticResource Accent}" />
+                    <TextBlock Text="File Transfer Request"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Foreground="#23344d"/>
+                </StackPanel>
+
+                <TextBlock Text="You have received a file from your partner:" Foreground="#4b5876" Margin="0,0,0,8"/>
+                <StackPanel Margin="0,0,0,18">
+                    <TextBlock>
+                        <Run Text="File Name: " FontWeight="SemiBold"/>
+                        <Run Text="{Binding FileName}" Foreground="#5968ad"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="File Size: " FontWeight="SemiBold"/>
+                        <Run Text="{Binding FileSize, StringFormat={}{0:N0} bytes}" Foreground="#848bc3"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Accept"
+                            Width="88"
+                            Height="36"
+                            Command="{Binding AcceptCommand}"
+                            Margin="0,0,10,0"
+                            FontWeight="Bold"
+                            Background="{StaticResource Accent}"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="18" Background="{TemplateBinding Background}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Reject"
+                            Width="88"
+                            Height="36"
+                            Command="{Binding RejectCommand}"
+                            FontWeight="Bold"
+                            Background="#F1F2F6"
+                            Foreground="#6B7280"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="18" Background="{TemplateBinding Background}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

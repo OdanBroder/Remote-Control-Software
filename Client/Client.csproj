@@ -119,6 +119,7 @@
     <Compile Include="Models\UserModel.cs" />
     <Compile Include="Models\WebRTCSignal.cs" />
     <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\FileTransferService.cs" />
     <Compile Include="Services\InputMonitor.cs" />
     <Compile Include="Services\SendInputServices.cs" />
     <Compile Include="Services\SendWebRTCSignal.cs" />
@@ -127,10 +128,18 @@
     <Compile Include="Services\VideoProcessor.cs" />
     <Compile Include="Services\WebRTCService.cs" />
     <Compile Include="ViewModels\ConnectViewModel.cs" />
+    <Compile Include="ViewModels\FileReceiveRequestViewModel.cs" />
+    <Compile Include="ViewModels\FileTransferViewModel.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\RegisterViewModel.cs" />
     <Compile Include="Views\ConnectView.xaml.cs">
       <DependentUpon>ConnectView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FileReceiveRequestView.xaml.cs">
+      <DependentUpon>FileReceiveRequestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FileTransferView.xaml.cs">
+      <DependentUpon>FileTransferView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\LoginView.xaml.cs">
       <DependentUpon>LoginView.xaml</DependentUpon>
@@ -167,6 +176,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ConnectView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FileReceiveRequestView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

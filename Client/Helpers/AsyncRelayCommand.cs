@@ -6,6 +6,12 @@ public class AsyncRelayCommand : ICommand
 {
     private readonly Func<object, Task> _execute;
     private readonly Predicate<object> _canExecute;
+    private Func<Task> onAcceptAsync;
+
+    public AsyncRelayCommand(Func<Task> onAcceptAsync)
+    {
+        this.onAcceptAsync = onAcceptAsync;
+    }
 
     public AsyncRelayCommand(Func<object, Task> execute, Predicate<object> canExecute = null)
     {

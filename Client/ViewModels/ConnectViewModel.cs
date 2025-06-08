@@ -12,6 +12,7 @@ using System.Windows.Media.Animation;
 using System.Text;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
+using Client.Views;
 
 namespace Client.ViewModels
 {
@@ -73,6 +74,7 @@ namespace Client.ViewModels
         public ICommand StartStreamingCommand { get; }
         public ICommand StopStreamingCommand { get; }
         public ICommand AcceptStreamingCommand { get; }
+        public ICommand ShowFileTransferCommand { get; }
 
         private readonly SendInputServices _sendInput;
         private InputMonitor _inputMonitor;
@@ -99,9 +101,16 @@ namespace Client.ViewModels
             StopStreamingCommand = new AsyncRelayCommand(async _ => await ExecuteStopStreaming());
             AcceptStreamingCommand = new AsyncRelayCommand(async _ => await ExecuteAcceptStreaming());
 
+            ShowFileTransferCommand = new RelayCommand(OpenFileTransferWindow);
             _ = ExecuteStartSession();
         }
-
+        private void OpenFileTransferWindow()
+        {
+            var vm = new FileTransferViewModel();
+            var win = new FileTransferView(vm); 
+            win.Owner = Application.Current.MainWindow;
+            win.Show();
+        }
         private async Task ExecuteStartSession()
         {
             ErrorMessage = string.Empty;

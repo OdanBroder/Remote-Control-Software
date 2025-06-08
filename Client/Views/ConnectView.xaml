@@ -132,14 +132,15 @@
 
                 <TextBox
                     Grid.Column="1"
-                    VerticalAlignment="Center"
                     Background="Transparent"
                     BorderThickness="0"
                     FontFamily="Bold"
+                    VerticalContentAlignment="Center"
                     FontSize="14"
                     FontWeight="Bold"
+                    Padding="0"
                     MaxLength="36"
-                    Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" />
+                    Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" Height="20" />
 
                 <Button
                     Grid.Column="2"
@@ -238,5 +239,13 @@
             VerticalAlignment="Top"
             Command="{Binding LeaveSessionCommand}"
             Content="Leave Session" />
+        <Button
+            Width="114"
+            Height="47"
+            Margin="360,375,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Command="{Binding ShowFileTransferCommand}"
+            Content="Send File" />
     </Grid>
 </UserControl>

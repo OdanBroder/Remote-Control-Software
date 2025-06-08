@@ -10,7 +10,6 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 
 namespace Client.Views
@@ -18,11 +17,15 @@ namespace Client.Views
     /// <summary>
     /// Interaction logic for FileTransferView.xaml
     /// </summary>
-    public partial class FileTransferView : UserControl
+    public partial class FileTransferView : Window
     {
-        public FileTransferView()
+        public FileTransferView(FileTransferViewModel vm)
         {
+
             InitializeComponent();
+            this.DataContext = vm;
         }
+
+        public FileTransferView() : this(new FileTransferViewModel()) { }
     }
 }

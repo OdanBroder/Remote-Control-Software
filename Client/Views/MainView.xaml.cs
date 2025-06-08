@@ -21,7 +21,6 @@ namespace Client.Views
     public partial class MainView : Window
     {
         private ContentControl _connectView;
-        private ContentControl FileTransferView; // co the xoa
         public MainView()
         {
             InitializeComponent();
@@ -45,32 +44,6 @@ namespace Client.Views
         private void btnClose_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
-        }
-        private void RadioButton_Checked(object sender, RoutedEventArgs e)
-        {
-            if (sender is RadioButton radio && radio.Tag != null)
-            {
-                string tag = radio.Tag.ToString();
-                switch (tag)
-                {
-                    case "Connect":
-                        MainContentPresenter.Content = _connectView;
-                        break;
-                    case "File":
-                        MainContentPresenter.Content = new FileTransferView();
-                        break;
-                    case "History":
-                        MainContentPresenter.Content = new TextBlock { Text = "HistoryView is not implemented yet." };
-                        break;
-                    default:
-                        MainContentPresenter.Content = new TextBlock { Text = $"Unknown view: {tag}" };
-                        break;
-                }
-            }
-            else
-            {
-                MainContentPresenter.Content = new TextBlock { Text = "Invalid radio button or tag." };
-            }
         }
     }
 }
