@@ -21,6 +21,7 @@ namespace Server.Services
         private readonly Dictionary<string, TcpListener> _tcpListeners = new();
         private readonly Dictionary<string, CancellationTokenSource> _listenerTokens = new();
         private readonly Dictionary<string, string> _pendingTransfers = new(); // sessionId -> fileName
+        private readonly Dictionary<string, string> _transferStates = new(); // sessionId -> state (pending, transferring, completed, failed)
         private readonly Dictionary<string, long> _fileSizes = new(); // sessionId -> fileSize
         private readonly Dictionary<string, TcpClient> _senderConnections = new(); // sessionId -> TcpClient
         private readonly Dictionary<string, TcpClient> _receiverConnections = new(); // sessionId -> TcpClient
@@ -64,9 +65,9 @@ namespace Server.Services
             _context.FileTransfers.Add(transfer);
             await _context.SaveChangesAsync();
 
-            // Notify receiver about new file transfer
+            // Notify host about new file transfer from client
             var session = await _context.RemoteSessions
-                .Include(s => s.ClientUser)
+                .Include(s => s.HostUser)
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
 
             if (session?.HostConnectionId != null)
@@ -252,12 +253,18 @@ namespace Server.Services
         {
             try
             {
+                if (_pendingTransfers.ContainsKey(sessionId))
+                {
+                    return (false, "A file transfer is already in progress for this session", null);
+                }
+
                 // Find an available port for sender
                 var senderPort = GetAvailablePort();
                 var senderListener = new TcpListener(IPAddress.Any, senderPort);
                 _tcpListeners[sessionId] = senderListener;
                 _listenerTokens[sessionId] = new CancellationTokenSource();
                 _pendingTransfers[sessionId] = fileName;
+                _transferStates[sessionId] = "pending";
                 _fileSizes[sessionId] = fileSize;
 
                 // Start listening for sender in background
@@ -268,6 +275,7 @@ namespace Server.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to start TCP file transfer");
+                CleanupTcpTransfer(sessionId);
                 return (false, ex.Message, null);
             }
         }
@@ -287,6 +295,7 @@ namespace Server.Services
             {
                 var listener = _tcpListeners[sessionId];
                 listener.Start();
+                _transferStates[sessionId] = "transferring";
 
                 _logger.LogInformation($"TCP listener started on port {((IPEndPoint)listener.LocalEndpoint).Port} for session {sessionId}");
 
@@ -421,6 +430,7 @@ namespace Server.Services
             }
 
             _pendingTransfers.Remove(sessionId);
+            _transferStates.Remove(sessionId);
             _fileSizes.Remove(sessionId);
         }
 
@@ -431,6 +441,11 @@ namespace Server.Services
                 if (!_pendingTransfers.ContainsKey(sessionId))
                 {
                     return Task.FromResult<(bool success, string message, int? port)>((false, "No pending transfer found", null));
+                }
+
+                if (_transferStates[sessionId] != "pending")
+                {
+                    return Task.FromResult<(bool success, string message, int? port)>((false, "Transfer is not in pending state", null));
                 }
 
                 var port = GetAvailablePort();
