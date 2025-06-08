@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using Client.Helpers;
 using Client.Services;
 using System.Windows;
+using System.Reflection;
 
 public class FileReceiveRequestViewModel : INotifyPropertyChanged
 {

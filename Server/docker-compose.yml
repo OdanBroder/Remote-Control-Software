@@ -51,6 +51,7 @@ services:
       - "5030:5030"
       - "5031:5031"
       - "5032:5032"
+      - "40000-40199:40000-40199"
     volumes:
       - file-transfer-data:/app/FileStorage
       - aspnet-data:/root/.aspnet/DataProtection-Keys
