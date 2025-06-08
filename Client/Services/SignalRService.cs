@@ -17,7 +17,7 @@ using Client.Views;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Runtime.InteropServices.ComTypes;
-
+using System.Linq;
 
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
@@ -34,6 +34,9 @@ namespace Client.Services
         [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int x, int y);
 
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+
         // Mouse event constants
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
@@ -43,6 +46,10 @@ namespace Client.Services
         private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
         private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
         private const uint MOUSEEVENTF_MOVE = 0x0001;
+
+        // Keyboard event constants
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
 
         private WriteableBitmap? _writeableBitmap = null;
 
@@ -869,6 +876,99 @@ namespace Client.Services
             if (value < min) return min;
             if (value > max) return max;
             return value;
+        }
+
+        private void ExecuteKeyboardAction(InputAction action)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(action.Key))
+                {
+                    Log.Error("Keyboard key is null or empty");
+                    return;
+                }
+
+                // Convert string key to virtual key code
+                Keys key;
+                if (!Enum.TryParse(action.Key, true, out key))
+                {
+                    Log.Error($"Invalid key: {action.Key}");
+                    return;
+                }
+
+                // Handle modifier keys
+                if (action.Modifiers != null)
+                {
+                    foreach (var modifier in action.Modifiers)
+                    {
+                        if (Enum.TryParse(modifier, true, out Keys modifierKey))
+                        {
+                            // Press modifier key
+                            keybd_event((byte)modifierKey, 0, 0, 0);
+                        }
+                    }
+                }
+
+                // Execute the main key action
+                switch (action.Action?.ToLower())
+                {
+                    case "keydown":
+                        keybd_event((byte)key, 0, 0, 0);
+                        break;
+
+                    case "keyup":
+                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                        break;
+
+                    case "keypress":
+                        keybd_event((byte)key, 0, 0, 0);
+                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                        break;
+
+                    default:
+                        Log.Error($"Unsupported keyboard action: {action.Action}");
+                        break;
+                }
+
+                // Release modifier keys in reverse order
+                if (action.Modifiers != null)
+                {
+                    var reversedModifiers = action.Modifiers.Reverse();
+                    foreach (var modifier in reversedModifiers)
+                    {
+                        if (Enum.TryParse(modifier, true, out Keys modifierKey))
+                        {
+                            keybd_event((byte)modifierKey, 0, KEYEVENTF_KEYUP, 0);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to execute keyboard action: {ex.Message}");
+            }
+        }
+
+        private void ExecuteInputAction(InputAction action)
+        {
+            if (action == null || string.IsNullOrEmpty(action.Type))
+            {
+                Log.Error("Invalid input action");
+                return;
+            }
+
+            switch (action.Type.ToLower())
+            {
+                case "mouse":
+                    ExecuteMouseAction(action);
+                    break;
+                case "keyboard":
+                    ExecuteKeyboardAction(action);
+                    break;
+                default:
+                    Log.Error($"Unsupported input type: {action.Type}");
+                    break;
+            }
         }
 
         public void Dispose()
