@@ -21,10 +21,10 @@ namespace Server.Services
         private readonly Dictionary<string, TcpListener> _tcpListeners = new();
         private readonly Dictionary<string, CancellationTokenSource> _listenerTokens = new();
         private readonly Dictionary<string, string> _pendingTransfers = new(); // sessionId -> fileName
-        private readonly Dictionary<string, string> _transferStates = new(); // sessionId -> state (pending, transferring, completed, failed)
         private readonly Dictionary<string, long> _fileSizes = new(); // sessionId -> fileSize
         private readonly Dictionary<string, TcpClient> _senderConnections = new(); // sessionId -> TcpClient
         private readonly Dictionary<string, TcpClient> _receiverConnections = new(); // sessionId -> TcpClient
+        private readonly Dictionary<string, int> _receiverPorts = new();
         private readonly string _fileStoragePath;
 
         public FileTransferService(
@@ -65,9 +65,9 @@ namespace Server.Services
             _context.FileTransfers.Add(transfer);
             await _context.SaveChangesAsync();
 
-            // Notify host about new file transfer from client
+            // Notify receiver about new file transfer
             var session = await _context.RemoteSessions
-                .Include(s => s.HostUser)
+                .Include(s => s.ClientUser)
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
 
             if (session?.HostConnectionId != null)
@@ -253,18 +253,12 @@ namespace Server.Services
         {
             try
             {
-                if (_pendingTransfers.ContainsKey(sessionId))
-                {
-                    return (false, "A file transfer is already in progress for this session", null);
-                }
-
                 // Find an available port for sender
                 var senderPort = GetAvailablePort();
                 var senderListener = new TcpListener(IPAddress.Any, senderPort);
                 _tcpListeners[sessionId] = senderListener;
                 _listenerTokens[sessionId] = new CancellationTokenSource();
                 _pendingTransfers[sessionId] = fileName;
-                _transferStates[sessionId] = "pending";
                 _fileSizes[sessionId] = fileSize;
 
                 // Start listening for sender in background
@@ -275,7 +269,6 @@ namespace Server.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to start TCP file transfer");
-                CleanupTcpTransfer(sessionId);
                 return (false, ex.Message, null);
             }
         }
@@ -295,7 +288,6 @@ namespace Server.Services
             {
                 var listener = _tcpListeners[sessionId];
                 listener.Start();
-                _transferStates[sessionId] = "transferring";
 
                 _logger.LogInformation($"TCP listener started on port {((IPEndPoint)listener.LocalEndpoint).Port} for session {sessionId}");
 
@@ -321,6 +313,7 @@ namespace Server.Services
                 var receiverPort = GetAvailablePort();
                 var receiverListener = new TcpListener(IPAddress.Any, receiverPort);
                 receiverListener.Start();
+                _receiverPorts[sessionId] = receiverPort;
 
                 using var receiver = await receiverListener.AcceptTcpClientAsync(cancellationToken);
                 _logger.LogInformation($"Receiver connected for file transfer in session {sessionId}");
@@ -402,7 +395,6 @@ namespace Server.Services
                     .SendAsync("FileTransferError", sessionId, ex.Message);
             }
         }
-
         private void CleanupTcpTransfer(string sessionId)
         {
             if (_senderConnections.TryGetValue(sessionId, out var sender))
@@ -430,8 +422,8 @@ namespace Server.Services
             }
 
             _pendingTransfers.Remove(sessionId);
-            _transferStates.Remove(sessionId);
             _fileSizes.Remove(sessionId);
+            _receiverPorts.Remove(sessionId);
         }
 
         public Task<(bool success, string message, int? port)> ConnectToReceiver(string sessionId)
@@ -443,12 +435,11 @@ namespace Server.Services
                     return Task.FromResult<(bool success, string message, int? port)>((false, "No pending transfer found", null));
                 }
 
-                if (_transferStates[sessionId] != "pending")
+                if (!_receiverPorts.TryGetValue(sessionId, out var port))
                 {
-                    return Task.FromResult<(bool success, string message, int? port)>((false, "Transfer is not in pending state", null));
+                    return Task.FromResult<(bool success, string message, int? port)>((false, "No receiver port allocated", null));
                 }
 
-                var port = GetAvailablePort();
                 return Task.FromResult<(bool success, string message, int? port)>((true, "Ready to receive file", port));
             }
             catch (Exception ex)

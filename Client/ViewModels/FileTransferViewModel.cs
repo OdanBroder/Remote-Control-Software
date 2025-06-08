@@ -100,7 +100,7 @@ public class FileTransferViewModel : INotifyPropertyChanged
             MessageBox.Show(Status, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
-    public async void StartTcpFileTransfer(int transferId)
+    public void StartTcpFileTransfer(int transferId)
     {
         Status = "File transfer accepted. Sending file...";
     }

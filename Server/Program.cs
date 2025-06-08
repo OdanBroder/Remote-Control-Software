@@ -169,7 +169,7 @@ builder.Services.AddSignalR(options =>
 .AddMessagePackProtocol();
 
 builder.Services.AddScoped<RemoteSessionService>();
-builder.Services.AddScoped<FileTransferService>();
+builder.Services.AddSingleton<FileTransferService>();
 builder.Services.AddScoped<SessionQualityService>();
 builder.Services.AddScoped<SecurityService>();
 builder.Services.AddScoped<CryptoService>();

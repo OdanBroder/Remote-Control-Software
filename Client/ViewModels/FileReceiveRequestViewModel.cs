@@ -13,18 +13,17 @@ using System.Windows;
 public class FileReceiveRequestViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler PropertyChanged;
-
     public int TransferId { get; set; }
     public string FileName { get; set; }
     public long FileSize { get; set; }
     public string SessionId { get; set; } 
-
     public IAsyncRelayCommand AcceptCommand { get; }
     public ICommand RejectCommand { get; }
 
     public event Action<bool> RequestClosed;
 
     private int _progress;
+    private readonly FileTransferService _fileTransferService = new FileTransferService();
     public int Progress
     {
         get => _progress;
@@ -54,7 +53,7 @@ public class FileReceiveRequestViewModel : INotifyPropertyChanged
                 Status = "SessionId is required!";
                 return;
             }
-            var (success, port, message) = await new FileTransferService().ConnectToReceiverTcpAsync(SessionId);
+            var (success, port, message) = await _fileTransferService.ConnectToReceiverTcpAsync(SessionId);
             if (!success)
             {
                 Status = $"Error: {message}";
@@ -75,7 +74,7 @@ public class FileReceiveRequestViewModel : INotifyPropertyChanged
             string savePath = saveDialog.FileName;
 
             Status = "Receiving file...";
-            await new FileTransferService().ReceiveFileOverTcpAsync(
+            await _fileTransferService.ReceiveFileOverTcpAsync(
                 host: AppSettings.ServerIP,
                 port: port,
                 savePath: savePath,
