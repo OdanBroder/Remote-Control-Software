@@ -100,6 +100,7 @@ namespace Client.Services
         private Point _lastMousePosition;
         private bool _isLocalInputDisabled = false;
         private IntPtr _lastActiveWindow;
+        private readonly IntPtr _screenCaptureViewHandle; // Store the window handle for ScreenCaptureView
 
         private IntPtr _hookID = IntPtr.Zero;
         private LowLevelKeyboardProc _keyboardProc;
@@ -108,13 +109,23 @@ namespace Client.Services
         /// Initializes a new instance of the InputMonitor class
         /// </summary>
         /// <param name="inputSender">Service responsible for sending input actions</param>
+        /// <param name="screenCaptureViewHandle">Handle of the ScreenCaptureView window</param>
         /// <exception cref="ArgumentNullException">Thrown when inputSender is null</exception>
-        public InputMonitor(SendInputServices inputSender)
+        public InputMonitor(SendInputServices inputSender, IntPtr screenCaptureViewHandle)
         {
             _inputSender = inputSender ?? throw new ArgumentNullException(nameof(inputSender));
+            _screenCaptureViewHandle = screenCaptureViewHandle;
             _lastMouseMoveTime = new Stopwatch();
             _lastMouseMoveTime.Start();
             _lastMousePosition = new Point(0, 0);
+        }
+
+        /// <summary>
+        /// Checks if the ScreenCaptureView window is currently active
+        /// </summary>
+        private bool IsScreenCaptureViewActive()
+        {
+            return GetForegroundWindow() == _screenCaptureViewHandle;
         }
 
         /// <summary>
@@ -144,8 +155,11 @@ namespace Client.Services
                 // Subscribe to events
                 SubscribeToEvents();
 
-                // Disable local input by default
-                DisableLocalInput();
+                // Only disable local input if ScreenCaptureView is active
+                if (IsScreenCaptureViewActive())
+                {
+                    DisableLocalInput();
+                }
 
                 Console.WriteLine("InputMonitor started successfully");
             }
@@ -168,6 +182,12 @@ namespace Client.Services
                 if (Control.ModifierKeys.HasFlag(Keys.Control) && Control.ModifierKeys.HasFlag(Keys.Alt))
                 {
                     ToggleLocalInput();
+                    return;
+                }
+
+                // Only process events when ScreenCaptureView is active
+                if (!IsScreenCaptureViewActive())
+                {
                     return;
                 }
 
@@ -207,7 +227,7 @@ namespace Client.Services
                     {
                         Type = "mouse",
                         Action = actionName,
-                        Button = e.Button.ToString(),
+                        Button = actionName == "mousemove" ? "None" : e.Button.ToString(),
                         X = (int)relativeX,
                         Y = (int)relativeY,
                         Modifiers = GetModifierKeys()
@@ -219,8 +239,11 @@ namespace Client.Services
                     }
                     catch (Exception ex)
                     {
-                        Stop();
                         Console.WriteLine($"Error while sending mouse action: {ex.Message}");
+                        if (actionName == "mousemove")
+                        {
+                            Console.WriteLine($"Mouse move failed at position: X={e.X}, Y={e.Y}");
+                        }
                     }
                 }
             };
@@ -234,6 +257,12 @@ namespace Client.Services
                 if (Control.ModifierKeys.HasFlag(Keys.Control) && Control.ModifierKeys.HasFlag(Keys.Alt))
                 {
                     ToggleLocalInput();
+                    return;
+                }
+
+                // Only process events when ScreenCaptureView is active
+                if (!IsScreenCaptureViewActive())
+                {
                     return;
                 }
 
@@ -257,7 +286,6 @@ namespace Client.Services
                         e.KeyCode == Keys.LShiftKey || e.KeyCode == Keys.RShiftKey || // Shift key variants
                         e.KeyCode == Keys.Escape || // Escape key
                         e.KeyCode == Keys.PrintScreen || // Print Screen
-                                                         //e.KeyCode == Keys.ScrollLock || // Scroll Lock
                         e.KeyCode == Keys.Pause || // Pause/Break
                         e.KeyCode == Keys.Insert || // Insert
                         e.KeyCode == Keys.Delete || // Delete
@@ -321,6 +349,12 @@ namespace Client.Services
                 UnsubscribeFromEvents();
                 _appHook.Dispose();
                 _appHook = null;
+
+                // Re-enable input when stopping
+                if (_isLocalInputDisabled)
+                {
+                    EnableLocalInput();
+                }
 
                 Console.WriteLine("InputMonitor stopped successfully");
             }
@@ -396,7 +430,7 @@ namespace Client.Services
         /// </summary>
         private void ToggleLocalInput()
         {
-            Console.WriteLine("ToggleLocalInput");
+            // Console.WriteLine("ToggleLocalInput");
             if (_isLocalInputDisabled)
             {
                 EnableLocalInput();
@@ -412,7 +446,7 @@ namespace Client.Services
         /// </summary>
         public void DisableLocalInput()
         {
-            if (!_isLocalInputDisabled)
+            if (!_isLocalInputDisabled && IsScreenCaptureViewActive())
             {
                 // Store current active window
                 _lastActiveWindow = GetForegroundWindow();
@@ -434,7 +468,7 @@ namespace Client.Services
                 SystemParametersInfo(SPI_SETSCREENSAVERRUNNING, 1, 0, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
 
                 _isLocalInputDisabled = true;
-                Console.WriteLine("Local input disabled");
+                // Console.WriteLine("Local input disabled for ScreenCaptureView");
             }
         }
 
@@ -462,7 +496,7 @@ namespace Client.Services
                 SetCursorPos(_originalCursorPos.X, _originalCursorPos.Y);
 
                 _isLocalInputDisabled = false;
-                Console.WriteLine("Local input enabled");
+                // Console.WriteLine("Local input enabled");
 
                 // Restore the last active window
                 if (_lastActiveWindow != IntPtr.Zero)
@@ -483,7 +517,7 @@ namespace Client.Services
 
         private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && _isLocalInputDisabled)
+            if (nCode >= 0 && _isLocalInputDisabled && IsScreenCaptureViewActive())
             {
                 int wParamInt = wParam.ToInt32();
                 if (wParamInt == WM_KEYDOWN || wParamInt == WM_KEYUP ||

@@ -13,6 +13,7 @@ using System.Text;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
 using Client.Views;
+using System.Windows.Interop;
 
 namespace Client.ViewModels
 {
@@ -283,7 +284,9 @@ namespace Client.ViewModels
             try
             {
                 Console.WriteLine("Input monitoring started...");
-                _inputMonitor = new InputMonitor(_sendInput);
+                // Get the main window handle
+                IntPtr windowHandle = new WindowInteropHelper(Application.Current.MainWindow).Handle;
+                _inputMonitor = new InputMonitor(_sendInput, windowHandle);
                 _inputMonitor.Start();
             }
             catch (Exception ex)
