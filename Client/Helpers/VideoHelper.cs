@@ -10,32 +10,32 @@ namespace Client.Helpers
 {
     public class VideoHelper
     {
-        //public BitmapSource ConvertI420FrameToBitmap(Microsoft.MixedReality.WebRTC.I420AVideoFrame frame)
-        //{
-        //    int width = (int)frame.width;
-        //    int height = (int)frame.height;
-        //    byte[] rgbData = null;
-        //    if (VideoProcessor.ConvertI420AToBGRA(
-        //        frame.dataY, frame.strideY,
-        //        frame.dataU, frame.strideU,
-        //        frame.dataV, frame.strideV,
-        //        frame.dataA, frame.strideA,
-        //        width, height,
-        //        ref rgbData))
-        //    {
-        //        int stride = width * 3; // RGB24
-        //        return BitmapSource.Create(
-        //            width, height,
-        //            96, 96,
-        //            PixelFormats.Rgb24, // Use Rgb24 since it's 3 bytes per pixel
-        //            null,
-        //            rgbData,
-        //            stride);
-        //    }
+        public static BitmapSource ConvertI420FrameToBitmap(I420AVideoFrame frame)
+        {
+            int width = (int)frame.width;
+            int height = (int)frame.height;
+            byte[] rgbData = null;
+            if (VideoProcessor.ConvertI420AToRGB(
+                frame.dataY, frame.strideY,
+                frame.dataU, frame.strideU,
+                frame.dataV, frame.strideV,
+                frame.dataA, frame.strideA,
+                width, height,
+                ref rgbData))
+            {
+                int stride = width * 3; // RGB24
+                return BitmapSource.Create(
+                    width, height,
+                    96, 96,
+                    PixelFormats.Rgb24, // Use Rgb24 since it's 3 bytes per pixel
+                    null,
+                    rgbData,
+                    stride);
+            }
 
-        //    return null;
-        //}
-        public void SaveBitmapAutoFilename(BitmapSource bitmap)
+            return null;
+        }
+        public static void SaveBitmapAutoFilename(BitmapSource bitmap)
         {
             string folderName = "Screen";
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), folderName);

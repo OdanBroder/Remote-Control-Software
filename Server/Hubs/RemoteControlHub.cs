@@ -29,6 +29,42 @@ namespace Server.Hubs
             _context = context;
             _cryptoService = cryptoService;
         }
+        public async Task StopStreaming()
+        {
+            try
+            {
+                var sessionId = await _sessionService.GetSessionId(Context.ConnectionId);
+                if (string.IsNullOrEmpty(sessionId))
+                {
+                    _logger.LogWarning("StopReceivingScreen: No session found for {ConnectionId}", Context.ConnectionId);
+                    return;
+                }
+
+                var session = await _sessionService.GetSession(sessionId);
+                if (session == null)
+                {
+                    _logger.LogWarning("StopReceivingScreen: Session not found: {SessionId}", sessionId);
+                    return;
+                }
+
+                // Determine the other party (likely the sender/host)
+                var senderConnectionId = session.HostConnectionId == Context.ConnectionId
+                    ? session.ClientConnectionId
+                    : session.HostConnectionId;
+
+                if (!string.IsNullOrEmpty(senderConnectionId))
+                {
+                    // Notify sender that receiver stopped receiving
+                    await Clients.Client(senderConnectionId).SendAsync("StoppedStreaming", Context.ConnectionId);
+                }
+
+                _logger.LogInformation("StopReceivingScreen: {ConnectionId} stop streamming with {SessionId}", Context.ConnectionId, sessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in StopReceivingScreen");
+            }
+        }
 
         public override async Task OnConnectedAsync()
         {

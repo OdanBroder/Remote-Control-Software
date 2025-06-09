@@ -159,22 +159,6 @@
             </Grid>
         </Border>
         <Button
-            Width="99"
-            Height="72"
-            Margin="108,174,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Command="{Binding StartInputCommand}"
-            Content="Send Input" />
-        <Button
-            Width="105"
-            Height="72"
-            Margin="239,174,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Command="{Binding StopInputCommand}"
-            Content="Stop send Input" />
-        <Button
             Width="109"
             Height="72"
             Margin="375,174,0,0"
@@ -216,14 +200,6 @@
             Command="{Binding AcceptStreamingCommand}"
             Content="Accept Streaming" />
         <Button
-            Width="118"
-            Height="64"
-            Margin="510,277,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Command="{Binding ConnectCommand}"
-            Content="Connect" />
-        <Button
             Width="99"
             Height="47"
             Margin="108,375,0,0"
@@ -231,14 +207,6 @@
             VerticalAlignment="Top"
             Command="{Binding DisconnectCommand}"
             Content="Disconnect" />
-        <Button
-            Width="114"
-            Height="47"
-            Margin="230,375,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Top"
-            Command="{Binding LeaveSessionCommand}"
-            Content="Leave Session" />
         <Button
             Width="114"
             Height="47"

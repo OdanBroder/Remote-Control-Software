@@ -219,7 +219,7 @@ namespace Client.Services
                 ConnectedSince = null;
             }
         }
-
+        public event Action<bool> OnStopInput;
         private void RegisterEventHandlers()
         {
             _connection.On<string>("ConnectionEstablished", (connectionId) =>
@@ -243,10 +243,17 @@ namespace Client.Services
             {
                 Log.Information("Peer connected: {PeerId}", peerId);
             });
-
-            _connection.On<string>("PeerDisconnected", (peerId) =>
+            _connection.On<string>("StoppedStreaming", async (peerId) =>
+            {
+                Log.Information("Peer stop stream: {PeerId}", peerId);
+                await StopStreaming();
+                OnStopInput?.Invoke(isSender);
+            });
+            _connection.On<string>("PeerDisconnected", async (peerId) =>
             {
                 Log.Information("Peer disconnected: {PeerId}", peerId);
+                await StopStreaming();
+                OnStopInput?.Invoke(isSender);
             });
 
             _connection.On<string>("ReceiveInput", async (serializedAction) =>
@@ -456,7 +463,7 @@ namespace Client.Services
                 _capture = new ScreenCaptureDXGI();
                 _webrtcClient = new WebRTCService();
                 _capture.OnFrameCaptured += _webrtcClient.OnI420AFrame;
-                var localtrack = _webrtcClient.CreateLocalVideoTrack();
+                _localVideoTrack = _webrtcClient.CreateLocalVideoTrack();
                 // Tạo Transceiver với video track
                 var transceiverInit = new TransceiverInitSettings
                 {
@@ -465,7 +472,7 @@ namespace Client.Services
                 };
                 var videoTransceiver = pc.AddTransceiver(MediaKind.Video, transceiverInit);
                 videoTransceiver.DesiredDirection = Transceiver.Direction.SendOnly;
-                videoTransceiver.LocalVideoTrack = localtrack;
+                videoTransceiver.LocalVideoTrack = _localVideoTrack;
 
                 // Log trạng thái của video track
                 if (videoTransceiver.LocalVideoTrack != null)
@@ -544,7 +551,7 @@ namespace Client.Services
                             Log.Warning("Failed to convert I420A to RGB");
                             return;
                         }
-
+                        
                         if (streamingWindow != null)
                         {
                             streamingWindow.Dispatcher.BeginInvoke(new Action(() =>
@@ -733,27 +740,92 @@ namespace Client.Services
                 throw;
             }
         }
+        public void PauseStreaming()
+        {
+            // Ví dụ: detach hoặc disable track source, không dispose
+            if (_webrtcClient != null && _capture != null)
+            {
+                _webrtcClient.Detach(_capture);
+                _capture.Stop();
+            }
+        }
 
-        public void StopStreaming()
+        public async Task SignalStopStreaming()
+        {
+            if (_connection != null)
+            {
+                await _connection.InvokeAsync("StopStreaming");
+                Log.Information("Stop streaming signal sent");
+            }
+            else
+            {
+                Log.Error("No connection");
+            }
+        }
+        public async Task<ApiResponse> StopStreaming(bool keepResources = false)
         {
             try
             {
+                if (!_isStreaming)
+                {
+                    return new ApiResponse { Success = true, Message = "No active streaming session" };
+                }
+
+                // First stop the capture to prevent new frames
                 if (_capture != null)
                 {
                     _capture.Stop();
                 }
 
-                if (_localVideoTrack != null)
+                // Detach WebRTC service from capture
+                if (_webrtcClient != null)
                 {
-                    _localVideoTrack.Dispose();
-                    _localVideoTrack = null;
+                    _capture.OnFrameCaptured -= _webrtcClient.OnI420AFrame;
                 }
 
+                if (!keepResources)
+                {
+                    // Clean up WebRTC peer connection
+                    if (pc != null)
+                    {
+                        pc.Close();
+                        pc.Dispose();
+                        pc = null;
+                    }
+
+                    // Clean up video track
+                    if (_localVideoTrack != null)
+                    {
+                        _localVideoTrack.Dispose();
+                        _localVideoTrack = null;
+                    }
+
+                    // Clean up WebRTC service
+                    if (_webrtcClient != null)
+                    {
+                        _webrtcClient.Dispose();
+                        _webrtcClient = null;
+                    }
+
+                    // Clean up capture
+                    if (_capture != null)
+                    {
+                        _capture.Dispose();
+                        _capture = null;
+                    }
+                }
+                if (streamingWindow != null)
+                {
+                    streamingWindow.Close();
+                    streamingWindow = null;
+                }
                 _isStreaming = false;
+                return new ApiResponse { Success = true, Message = "Streaming stopped successfully" };
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error stopping streaming");
+                return new ApiResponse { Success = false, Message = $"Failed to stop streaming: {ex.Message}" };
             }
         }
 
@@ -1021,13 +1093,13 @@ namespace Client.Services
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected async virtual void Dispose(bool disposing)
         {
             if (!_isDisposed)
             {
                 if (disposing)
                 {
-                    StopStreaming();
+                    await StopStreaming();
                     _webrtcClient?.Dispose();
                     _capture?.Dispose();
                     _connection?.DisposeAsync();
@@ -1040,5 +1112,7 @@ namespace Client.Services
         {
             Dispose(false);
         }
+
+        public bool IsStreaming => _isStreaming;
     }
 }

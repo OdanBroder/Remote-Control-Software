@@ -14,6 +14,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
 using Client.Views;
 using System.Windows.Interop;
+using System.Linq;
 
 namespace Client.ViewModels
 {
@@ -80,11 +81,13 @@ namespace Client.ViewModels
         private readonly SendInputServices _sendInput;
         private InputMonitor _inputMonitor;
 
+
         public ConnectViewModel(SessionService sessionService, SignalRService signalRService)
         {
             ErrorMessage = string.Empty;
             _sessionService = sessionService;
             _signalRService = signalRService;
+            _signalRService.OnStopInput += OnStoppedStreaming;
             _sendInput = new SendInputServices(_signalRService);
 
             ReconnectCommand = new AsyncRelayCommand(async _ => await ExecuteStartSession());
@@ -103,16 +106,29 @@ namespace Client.ViewModels
             ShowFileTransferCommand = new RelayCommand(OpenFileTransferWindow);
             _ = ExecuteStartSession();
         }
+
         private void OpenFileTransferWindow()
         {
             var vm = new FileTransferViewModel();
-            var win = new FileTransferView(vm); 
+            var win = new FileTransferView(vm);
             win.Owner = Application.Current.MainWindow;
             win.Show();
+        }
+        private void OnStoppedStreaming(bool isSender)
+        {
+            if (isSender && _inputMonitor != null)
+            {
+                _inputMonitor.Stop();
+            }
+            else if (!isSender && _inputMonitor != null)
+            {
+                _inputMonitor.DisableLocalInput();
+            }
         }
         private async Task ExecuteStartSession()
         {
             ErrorMessage = string.Empty;
+            Session = string.Empty;
             try
             {
                 var response = await _sessionService.GetActiveSessionAsync();
@@ -159,6 +175,7 @@ namespace Client.ViewModels
                     string sessionId = SessionStorage.LoadSession();
                     string connectId = ConnectionStorage.LoadConnectionId();
                     Log.Information($"Connection Id {connectId}");
+                    await ExecuteLeaveSessionAsync();
                     await _sessionService.DisconnectToSessionAsync(sessionId, connectId);
                 }
                 else
@@ -313,16 +330,43 @@ namespace Client.ViewModels
         {
             try
             {
-                ErrorMessage = "Start streaming...";
+                // Check if already streaming
+                if (_signalRService.IsStreaming)
+                {
+                    ErrorMessage = "Streaming is already active";
+                    return;
+                }
+
+                ErrorMessage = "Starting streaming...";
+
+                // Get active session
                 SessionResponse sessionResponse = await _sessionService.GetActiveSessionAsync();
+                if (sessionResponse?.Data == null || !sessionResponse.Data.Any())
+                {
+                    ErrorMessage = "No active session found";
+                    return;
+                }
+
+                // Connect to SignalR hub
                 await _signalRService.ConnectToHubAsync(sessionResponse.Data[0].SessionId);
                 await WaitForSignalRConnection();
+
+                // Start streaming
                 var response = await _signalRService.StartStreaming(isStreamer: true);
+                if (!response.Success)
+                {
+                    ErrorMessage = response.Message;
+                    await _signalRService.DisconnectToHubAsync();
+                    return;
+                }
+
+                ErrorMessage = "Streaming started successfully";
             }
             catch (Exception ex)
             {
+                ErrorMessage = $"Error starting streaming: {ex.Message}";
+                Log.Error(ex, "Failed to start streaming");
                 await _signalRService.DisconnectToHubAsync();
-                Console.WriteLine($"Error when streaming: {ex.Message}");
             }
         }
 
@@ -330,11 +374,34 @@ namespace Client.ViewModels
         {
             try
             {
-                await _signalRService.DisconnectToHubAsync();
+                if (!_signalRService.IsStreaming)
+                {
+                    ErrorMessage = "No active streaming session";
+                    return;
+                }
+                Log.Information("Stopping streaming...");
+                ErrorMessage = "Stopping streaming...";
+
+                // First stop input monitoring
+                await ExecuteStopInput();
+                await _signalRService.SignalStopStreaming();
+                await _signalRService.StopStreaming(keepResources: false);
+                ErrorMessage = "Streaming stopped successfully";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error when streaming: {ex.Message}");
+                ErrorMessage = $"Error stopping streaming: {ex.Message}";
+                Log.Error(ex, "Failed to stop streaming");
+
+                // Force cleanup on error
+                try
+                {
+                    _signalRService.StopStreaming(keepResources: false);
+                }
+                catch (Exception cleanupEx)
+                {
+                    Log.Error(cleanupEx, "Failed to cleanup streaming resources after error");
+                }
             }
         }
 
@@ -342,16 +409,43 @@ namespace Client.ViewModels
         {
             try
             {
-                ErrorMessage = "Wait for sender...";
+                // Check if already streaming
+                if (_signalRService.IsStreaming)
+                {
+                    ErrorMessage = "Streaming is already active";
+                    return;
+                }
+
+                ErrorMessage = "Waiting for sender...";
+
+                // Get active session
                 SessionResponse sessionResponse = await _sessionService.GetActiveSessionAsync();
+                if (sessionResponse?.Data == null || !sessionResponse.Data.Any())
+                {
+                    ErrorMessage = "No active session found";
+                    return;
+                }
+
+                // Connect to SignalR hub
                 await _signalRService.ConnectToHubAsync(sessionResponse.Data[0].SessionId);
                 await WaitForSignalRConnection();
-                //var webRTCSignal = new SendWebRTCSignal(_signalRService);
+
+                // Start streaming as viewer
                 var response = await _signalRService.StartStreaming(isStreamer: false);
+                if (!response.Success)
+                {
+                    ErrorMessage = response.Message;
+                    await _signalRService.DisconnectToHubAsync();
+                    return;
+                }
+
+                ErrorMessage = "Streaming accepted successfully";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error when accept streaming: {ex.Message}");
+                ErrorMessage = $"Error accepting streaming: {ex.Message}";
+                Log.Error(ex, "Failed to accept streaming");
+                await _signalRService.DisconnectToHubAsync();
             }
         }
 
