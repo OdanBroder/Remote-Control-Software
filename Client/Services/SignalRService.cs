@@ -571,7 +571,7 @@ namespace Client.Services
                                             height,
                                             96,
                                             96,
-                                        PixelFormats.Rgb24,
+                                        PixelFormats.Bgr24,
                                             null);
                                         streamingWindow.CaptureImage.Source = _writeableBitmap;
                                     }
