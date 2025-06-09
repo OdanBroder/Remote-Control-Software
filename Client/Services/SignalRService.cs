@@ -525,7 +525,7 @@ namespace Client.Services
                         int width = (int)frame.width;
                         int height = (int)frame.height;
 
-                        Log.Information("Processing frame: {Width}x{Height}", width, height);
+                        //Log.Information("Processing frame: {Width}x{Height}", width, height);
 
                         // Convert I420A to RGB byte[] (your existing method)
                         byte[]? rgbData = null;
@@ -536,11 +536,11 @@ namespace Client.Services
                             frame.dataA, frame.strideA,
                             width, height,
                             ref rgbData);
-                        Log.Information("Calling ConvertI420AToBGRA: W={0}, H={1}, Ystride={2}, Ustride={3}, Vstride={4}, Astride={5}",
-                        frame.width, frame.height, frame.strideY, frame.strideU, frame.strideV, frame.strideA);
+                        //Log.Information("Calling ConvertI420AToBGRA: W={0}, H={1}, Ystride={2}, Ustride={3}, Vstride={4}, Astride={5}",
+                        //frame.width, frame.height, frame.strideY, frame.strideU, frame.strideV, frame.strideA);
 
-                        Log.Information("Pointers: Y={0}, U={1}, V={2}, A={3}",
-                            frame.dataY, frame.dataU, frame.dataV, frame.dataA);
+                        //Log.Information("Pointers: Y={0}, U={1}, V={2}, A={3}",
+                        //    frame.dataY, frame.dataU, frame.dataV, frame.dataA);
 
                         if (!success)
                         {
@@ -551,13 +551,18 @@ namespace Client.Services
                             Log.Warning("Failed to convert I420A to RGB");
                             return;
                         }
-                        
+
                         if (streamingWindow != null)
                         {
                             streamingWindow.Dispatcher.BeginInvoke(new Action(() =>
                             {
                                 try
                                 {
+                                    if (streamingWindow == null || streamingWindow.CaptureImage == null)
+                                    {
+                                        Log.Error("CaptureImage is null");
+                                        return;
+                                    }
                                     // Create WriteableBitmap once
                                     if (_writeableBitmap == null)
                                     {
@@ -566,7 +571,7 @@ namespace Client.Services
                                             height,
                                             96,
                                             96,
-                                        PixelFormats.Bgr24,
+                                        PixelFormats.Rgb24,
                                             null);
                                         streamingWindow.CaptureImage.Source = _writeableBitmap;
                                     }
@@ -582,7 +587,7 @@ namespace Client.Services
                                     _writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
                                     _writeableBitmap.Unlock();
 
-                                    Log.Debug("Frame updated successfully (WriteableBitmap)");
+                                    //Log.Debug("Frame updated successfully (WriteableBitmap)");
                                 }
                                 catch (Exception ex)
                                 {
@@ -817,6 +822,7 @@ namespace Client.Services
                 if (streamingWindow != null)
                 {
                     streamingWindow.Close();
+                    _writeableBitmap = null;
                     streamingWindow = null;
                 }
                 _isStreaming = false;

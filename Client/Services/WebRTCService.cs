@@ -19,7 +19,10 @@ namespace Client.Services
         private LocalVideoTrack _localVideoTrack;
         private int _currentWidth;
         private int _currentHeight;
-        private int _currentStride;
+        private int _currentAStride;
+        private int _currentYStride;
+        private int _currentUStride;
+        private int _currentVStride;
         public byte[] _yBuffer, _uBuffer, _vBuffer, _aBuffer;
         GCHandle _yHandle, _uHandle, _vHandle, _aHandle;
         public WebRTCService()
@@ -30,31 +33,42 @@ namespace Client.Services
                 .CreateLogger();
         }
 
-        public void OnI420AFrame(IntPtr yPlane,
-        int width,
-        int height,
-        int stride,
-        IntPtr uPlane,
-        IntPtr vPlane,
-        IntPtr aPlane)
+        public void OnI420AFrame(
+        IntPtr yPlane, int yStride,
+        IntPtr uPlane, int uStride,
+        IntPtr vPlane, int vStride,
+        IntPtr aPlane, int aStride,
+        int width, int height)
         {
-            Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
-            int ySize = stride * height;
-            int uvWidth = width / 2;
-            int uvHeight = height / 2;
-            int uvStride = uvWidth;
-            int uvSize = uvStride * uvHeight;
+            //Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
+            int ySize = yStride * height;
+            int uvSize = uStride * ((height + 1) / 2);
+            int aSize = aStride * height;
+            if (width <= 0 || height <= 0 || yStride < width || uStride < (width + 1) / 2 || vStride < (width + 1) / 2 || aStride < width)
+            {
+                Log.Error("Invalid frame parameters: w={0}, h={1}, yStride={2}, uStride={3}, vStride={4}, aStride={5}", width, height, yStride, uStride, vStride, aStride);
+                return;
+            }
+            if (yPlane == IntPtr.Zero || uPlane == IntPtr.Zero || vPlane == IntPtr.Zero || aPlane == IntPtr.Zero)
+            {
+                Log.Error("Null plane pointer received.");
+                return;
+            }
             try
             {
-                _yBuffer = new byte[ySize];
-                _uBuffer = new byte[uvSize];
-                _vBuffer = new byte[uvSize];
-                _aBuffer = new byte[ySize];
+                if (_yBuffer == null || _yBuffer.Length != ySize)
+                    _yBuffer = new byte[ySize];
+                if (_uBuffer == null || _uBuffer.Length != uvSize)
+                    _uBuffer = new byte[uvSize];
+                if (_vBuffer == null || _vBuffer.Length != uvSize)
+                    _vBuffer = new byte[uvSize];
+                if (_aBuffer == null || _aBuffer.Length != aSize)
+                    _aBuffer = new byte[aSize];
 
                 Marshal.Copy(yPlane, _yBuffer, 0, ySize);
                 Marshal.Copy(uPlane, _uBuffer, 0, uvSize);
                 Marshal.Copy(vPlane, _vBuffer, 0, uvSize);
-                Marshal.Copy(aPlane, _aBuffer, 0, ySize);
+                Marshal.Copy(aPlane, _aBuffer, 0, aSize);
 
                 if (_yHandle.IsAllocated) _yHandle.Free();
                 if (_uHandle.IsAllocated) _uHandle.Free();
@@ -69,12 +83,16 @@ namespace Client.Services
             }
             catch (Exception ex)
             {
-                Log.Error("Error while initializing skipping frame... ");
+                Log.Error("Error while initializing skipping frame...{ex} ",ex);
             }
             // Lưu width, height lại như trước
             _currentWidth = width;
             _currentHeight = height;
-            _currentStride = stride;
+            _currentAStride = aStride;
+            _currentYStride = yStride;
+            _currentUStride = uStride;
+            _currentVStride = vStride;
+
         }
 
         /// <summary>
@@ -82,11 +100,11 @@ namespace Client.Services
         /// </summary>
         public unsafe void OnFrameRequested(in FrameRequest request)
         {
-            Log.Information("OnFrameRequested: frame requested");
+            //Log.Information("OnFrameRequested: frame requested");
             // Nếu buffer chưa được cấp phát hoặc không hợp lệ thì không làm gì
             if (_yHandle.IsAllocated == false || _uHandle.IsAllocated == false || _vHandle.IsAllocated == false || _aHandle.IsAllocated == false)
                 return;
-            Log.Information("OnFrameRequested: frame exist");
+            //Log.Information("OnFrameRequested: frame exist");
             // Đảm bảo rằng bạn đang làm việc với dữ liệu I420A đã có từ delegate
             try
             {
@@ -104,14 +122,14 @@ namespace Client.Services
                     dataU = (IntPtr)uPtr,
                     dataV = (IntPtr)vPtr,
                     dataA = (IntPtr)aPtr,
-                    strideY = _currentStride,
-                    strideU = (_currentWidth / 2),
-                    strideV = (_currentWidth / 2),
-                    strideA = _currentStride
+                    strideY = _currentYStride,
+                    strideU = _currentUStride,
+                    strideV = _currentVStride,
+                    strideA = _currentAStride
                 };
                 try
                 {
-                    Console.WriteLine("OnFrameRequested: Complete Request!");
+                    //Console.WriteLine("OnFrameRequested: Complete Request!");
                     request.CompleteRequest(in frame);
                 }
                 catch (Exception innerEx)
