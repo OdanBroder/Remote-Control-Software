@@ -9,6 +9,7 @@ using Serilog;
 using System.Runtime.InteropServices;
 using System.Linq.Expressions;
 using System.Diagnostics;
+using System.Windows.Ink;
 namespace Client.Services
 {
     public class WebRTCService : IDisposable
@@ -19,10 +20,7 @@ namespace Client.Services
         private LocalVideoTrack _localVideoTrack;
         private int _currentWidth;
         private int _currentHeight;
-        private int _currentAStride;
-        private int _currentYStride;
-        private int _currentUStride;
-        private int _currentVStride;
+        private int _currentStride;
         public byte[] _yBuffer, _uBuffer, _vBuffer, _aBuffer;
         GCHandle _yHandle, _uHandle, _vHandle, _aHandle;
         public WebRTCService()
@@ -33,22 +31,18 @@ namespace Client.Services
                 .CreateLogger();
         }
 
-        public void OnI420AFrame(
-        IntPtr yPlane, int yStride,
-        IntPtr uPlane, int uStride,
-        IntPtr vPlane, int vStride,
-        IntPtr aPlane, int aStride,
-        int width, int height)
+        public void OnI420AFrame(IntPtr yPlane,
+        int width,
+        int height,
+        int stride,
+        IntPtr uPlane,
+        IntPtr vPlane,
+        IntPtr aPlane)
         {
             //Log.Information("OnI420AFrame: frame received {W}x{H}", width, height);
-            int ySize = yStride * height;
-            int uvSize = uStride * ((height + 1) / 2);
-            int aSize = aStride * height;
-            if (width <= 0 || height <= 0 || yStride < width || uStride < (width + 1) / 2 || vStride < (width + 1) / 2 || aStride < width)
-            {
-                Log.Error("Invalid frame parameters: w={0}, h={1}, yStride={2}, uStride={3}, vStride={4}, aStride={5}", width, height, yStride, uStride, vStride, aStride);
-                return;
-            }
+            int ySize = stride * height;
+            int uvSize = (width / 2) * (height / 2);
+            
             if (yPlane == IntPtr.Zero || uPlane == IntPtr.Zero || vPlane == IntPtr.Zero || aPlane == IntPtr.Zero)
             {
                 Log.Error("Null plane pointer received.");
@@ -62,13 +56,13 @@ namespace Client.Services
                     _uBuffer = new byte[uvSize];
                 if (_vBuffer == null || _vBuffer.Length != uvSize)
                     _vBuffer = new byte[uvSize];
-                if (_aBuffer == null || _aBuffer.Length != aSize)
-                    _aBuffer = new byte[aSize];
+                if (_aBuffer == null || _aBuffer.Length != ySize)
+                    _aBuffer = new byte[ySize];
 
                 Marshal.Copy(yPlane, _yBuffer, 0, ySize);
                 Marshal.Copy(uPlane, _uBuffer, 0, uvSize);
                 Marshal.Copy(vPlane, _vBuffer, 0, uvSize);
-                Marshal.Copy(aPlane, _aBuffer, 0, aSize);
+                Marshal.Copy(aPlane, _aBuffer, 0, ySize);
 
                 if (_yHandle.IsAllocated) _yHandle.Free();
                 if (_uHandle.IsAllocated) _uHandle.Free();
@@ -88,10 +82,7 @@ namespace Client.Services
             // Lưu width, height lại như trước
             _currentWidth = width;
             _currentHeight = height;
-            _currentAStride = aStride;
-            _currentYStride = yStride;
-            _currentUStride = uStride;
-            _currentVStride = vStride;
+            _currentStride = stride;
 
         }
 
@@ -122,10 +113,10 @@ namespace Client.Services
                     dataU = (IntPtr)uPtr,
                     dataV = (IntPtr)vPtr,
                     dataA = (IntPtr)aPtr,
-                    strideY = _currentYStride,
-                    strideU = _currentUStride,
-                    strideV = _currentVStride,
-                    strideA = _currentAStride
+                    strideY = _currentStride,
+                    strideU = (_currentWidth / 2),
+                    strideV = (_currentWidth / 2),
+                    strideA = _currentStride
                 };
                 try
                 {
