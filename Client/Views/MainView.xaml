@@ -7,10 +7,11 @@
         xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         mc:Ignorable="d"
         Title="MainViewModel"
-        Height="600" Width="1000"
+        Height="500" Width="800"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
+        ResizeMode="NoResize"
         Background="Transparent">
 
     <Border CornerRadius="10" BorderThickness="1">
@@ -124,11 +125,13 @@
             </Border>
 
             <Grid Grid.Row="1">
-                <Border CornerRadius="0,10,10,0" Background="White">
+                <Border CornerRadius="15"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    ClipToBounds="True"
+                    SnapsToDevicePixels="True">
                     <ContentControl x:Name="MainContentPresenter"
-                    MinHeight="200"
-                    MinWidth="400"
-                    Background="LightGray"/>
+                        Background="Transparent"/>
                 </Border>
             </Grid>
         </Grid>
