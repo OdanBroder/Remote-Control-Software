@@ -7,11 +7,10 @@
         xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         mc:Ignorable="d"
         Title="MainViewModel"
-        Height="900" Width="1400"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
-        ResizeMode="NoResize"
         Background="Transparent">
 
     <Border CornerRadius="10" BorderThickness="1">
@@ -43,6 +42,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
+                        <ColumnDefinition Width="25"/>
                         <ColumnDefinition Width="25"/>
                         <ColumnDefinition Width="25"/>
                         <ColumnDefinition Width="10"/>
@@ -89,8 +89,39 @@
                         </Button.Template>
                     </Button>
 
+                    <Button x:Name="btnMaximize"
+                            Grid.Column="2"
+                            BorderThickness="0"
+                            Content="□"
+                            Foreground="White"
+                            FontSize="10"
+                            FontFamily="Montserrat"
+                            Cursor="Hand"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Click="btnMaximize_Click">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#FDBF2D"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#f0aa00"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Width="18" Height="18" CornerRadius="9"
+                                            Background="{TemplateBinding Background}">
+                                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    
                     <Button x:Name="btnClose"
-                        Grid.Column="2"
+                        Grid.Column="3"
                         BorderThickness="0"
                         Content="x"
                         Foreground="White"

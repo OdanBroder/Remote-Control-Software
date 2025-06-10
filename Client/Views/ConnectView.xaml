@@ -6,8 +6,6 @@
     xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
     xmlns:local="clr-namespace:Client.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    d:DesignHeight="900"
-    d:DesignWidth="1400"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -29,6 +27,7 @@
             <Setter Property="Padding" Value="16,12"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="Black"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="BorderBrush" Value="#E1E5E9"/>
             <Setter Property="Background" Value="#FAFBFC"/>
@@ -36,12 +35,13 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
                         <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12">
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="12">
                             <ScrollViewer x:Name="PART_ContentHost"
-                                          Margin="{TemplateBinding Padding}"
-                                          VerticalAlignment="Center" />
+                                  Margin="{TemplateBinding Padding}"
+                                  VerticalAlignment="Center"
+                                  Foreground="{TemplateBinding Foreground}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -221,44 +221,20 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- Main Container -->
     <Grid>
-        <!-- Modern Gradient Background -->
-        <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Offset="0" Color="#F7FAFC" />
-                <GradientStop Offset="0.5" Color="#EDF2F7" />
-                <GradientStop Offset="1" Color="#E2E8F0" />
-            </LinearGradientBrush>
-        </Grid.Background>
-
-        <!-- Content Container -->
+        <!-- Lớp nền nội dung -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel MaxWidth="600" Margin="40" HorizontalAlignment="Center">
-                
                 <!-- Header -->
                 <StackPanel Margin="0,0,0,40">
-                    <TextBlock Text="Remote Connection Hub" 
-                               FontSize="32" 
-                               FontWeight="Bold" 
-                               Foreground="#2D3748"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,8"/>
-                    <TextBlock Text="Connect, stream, and share files seamlessly" 
-                               FontSize="16" 
-                               Foreground="#718096"
-                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Remote Connection Hub" FontSize="32" FontWeight="Bold" Foreground="#2D3748" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Connect, stream, and share files seamlessly" FontSize="16" Foreground="#718096" HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Session Information Card -->
                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,24">
                     <StackPanel>
-                        <TextBlock Text="Your Session" 
-                                   FontSize="18" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="#2D3748"
-                                   Margin="0,0,0,16"/>
-                        
+                        <TextBlock Text="Your Session" FontSize="18" FontWeight="SemiBold" Foreground="#2D3748" Margin="0,0,0,16"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -267,38 +243,12 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0"
-                                       Text="Session ID:"
-                                       FontSize="14"
-                                       FontWeight="Medium"
-                                       Foreground="#4A5568"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,12,0"/>
-
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Session}"
-                                       FontSize="14"
-                                       FontFamily="Consolas"
-                                       FontWeight="SemiBold"
-                                       Foreground="#2D3748"
-                                       VerticalAlignment="Center"
-                                       Background="#F7FAFC"
-                                       Padding="12,8"
-                                       TextWrapping="Wrap"/>
-
-                            <Button Grid.Column="2"
-                                    Style="{StaticResource IconButton}"
-                                    Command="{Binding CopySessionCommand}"
-                                    ToolTip="Copy Session ID"
-                                    Margin="8,0,0,0">
+                            <TextBlock Grid.Column="0" Text="Session ID:" FontSize="14" FontWeight="Medium" Foreground="#4A5568" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Session}" FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#2D3748" VerticalAlignment="Center" Background="#F7FAFC" Padding="12,8" TextWrapping="Wrap"/>
+                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Command="{Binding CopySessionCommand}" ToolTip="Copy Session ID" Margin="8,0,0,0">
                                 <fa:IconImage Width="18" Height="18" Icon="Clone" Foreground="#7E57C2"/>
                             </Button>
-
-                            <Button Grid.Column="3"
-                                    Style="{StaticResource IconButton}"
-                                    Command="{Binding ReconnectCommand}"
-                                    ToolTip="Reconnect"
-                                    Margin="8,0,0,0">
+                            <Button Grid.Column="3" Style="{StaticResource IconButton}" Command="{Binding ReconnectCommand}" ToolTip="Reconnect" Margin="8,0,0,0">
                                 <fa:IconImage Width="18" Height="18" Icon="Refresh" Foreground="#7E57C2"/>
                             </Button>
                         </Grid>
@@ -308,32 +258,16 @@
                 <!-- Join Session Card -->
                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,32">
                     <StackPanel>
-                        <TextBlock Text="Join Remote Session" 
-                                   FontSize="18" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="#2D3748"
-                                   Margin="0,0,0,16"/>
-                        
+                        <TextBlock Text="Join Remote Session" FontSize="18" FontWeight="SemiBold" Foreground="#2D3748" Margin="0,0,0,16"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <TextBox Grid.Column="0"
-                                     Style="{StaticResource ModernTextBox}"
-                                     Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
-                                     MaxLength="36"
-                                     FontFamily="Consolas"
-                                     Tag="Enter remote session ID..."/>
-
-                            <Button Grid.Column="1"
-                                    Style="{StaticResource IconButton}"
-                                    Command="{Binding JoinSessionCommand}"
-                                    ToolTip="Join Session"
-                                    Margin="12,0,0,0"
-                                    Width="48"
-                                    Height="48">
+                            <Border Grid.Column="0" Background="#FAFBFC" BorderBrush="#E1E5E9" BorderThickness="2" CornerRadius="12">
+                                <TextBox Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" MaxLength="36" FontFamily="Consolas" Foreground="Black" Background="Transparent" Padding="16,12" FontWeight="Bold" FontSize="14" BorderThickness="0" VerticalContentAlignment="Center" Tag="Enter remote session ID..." x:Name="JoinSessionTextBox"/>
+                            </Border>
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Command="{Binding JoinSessionCommand}" ToolTip="Join Session" Margin="12,0,0,0" Width="48" Height="48">
                                 <fa:IconImage Width="20" Height="20" Icon="SignIn" Foreground="#7E57C2"/>
                             </Button>
                         </Grid>
@@ -343,26 +277,11 @@
                 <!-- Streaming Controls -->
                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,24">
                     <StackPanel>
-                        <TextBlock Text="Streaming Controls" 
-                                   FontSize="18" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="#2D3748"
-                                   Margin="0,0,0,20"/>
-                        
-                        <UniformGrid Columns="3" 
-                                     HorizontalAlignment="Center">
-                            <Button Style="{StaticResource PrimaryButton}" 
-                                    Content="Start Streaming" 
-                                    Command="{Binding StartStreamingCommand}" 
-                                    Margin="0,0,12,0"/>
-                            <Button Style="{StaticResource SecondaryButton}" 
-                                    Content="Stop Streaming" 
-                                    Command="{Binding StopStreamingCommand}"
-                                    Margin="6,0"/>
-                            <Button Style="{StaticResource PrimaryButton}" 
-                                    Content="Accept Stream" 
-                                    Command="{Binding AcceptStreamingCommand}"
-                                    Margin="12,0,0,0"/>
+                        <TextBlock Text="Streaming Controls" FontSize="18" FontWeight="SemiBold" Foreground="#2D3748" Margin="0,0,0,20"/>
+                        <UniformGrid Columns="3" HorizontalAlignment="Center">
+                            <Button Style="{StaticResource PrimaryButton}" Content="Start Streaming" Command="{Binding StartStreamingCommand}" Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource SecondaryButton}" Content="Stop Streaming" Command="{Binding StopStreamingCommand}" Margin="6,0"/>
+                            <Button Style="{StaticResource PrimaryButton}" Content="Accept Stream" Command="{Binding AcceptStreamingCommand}" Margin="12,0,0,0"/>
                         </UniformGrid>
                     </StackPanel>
                 </Border>
@@ -370,27 +289,36 @@
                 <!-- File & Connection Controls -->
                 <Border Style="{StaticResource ModernCard}">
                     <StackPanel>
-                        <TextBlock Text="File Transfer &amp; Connection" 
-                                   FontSize="18" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="#2D3748"
-                                   Margin="0,0,0,20"/>
-                        
-                        <UniformGrid Columns="2" 
-                                     HorizontalAlignment="Center">
-                            <Button Style="{StaticResource SecondaryButton}" 
-                                    Content="📁 Send File" 
-                                    Command="{Binding ShowFileTransferCommand}"
-                                    Margin="0,0,12,0"/>
-                            <Button Style="{StaticResource DangerButton}" 
-                                    Content="Disconnect" 
-                                    Command="{Binding DisconnectCommand}"
-                                    Margin="12,0,0,0"/>
+                        <TextBlock Text="File Transfer &amp; Connection" FontSize="18" FontWeight="SemiBold" Foreground="#2D3748" Margin="0,0,0,20"/>
+                        <UniformGrid Columns="2" HorizontalAlignment="Center">
+                            <Button Style="{StaticResource SecondaryButton}" Content="📁 Send File" Command="{Binding ShowFileTransferCommand}" Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource DangerButton}" Content="Disconnect" Command="{Binding DisconnectCommand}" Margin="12,0,0,0"/>
                         </UniformGrid>
                     </StackPanel>
                 </Border>
-
             </StackPanel>
         </ScrollViewer>
+
+        <Button Content="Logout"
+            Command="{Binding LogoutCommand}"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Margin="0,770,43,0"
+            Width="70"
+            Height="40"
+            Panel.ZIndex="100"
+            Background="#E53E3E"
+            Foreground="White"
+            FontSize="14"
+            FontWeight="SemiBold"
+            Padding="0">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="14">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
     </Grid>
 </UserControl>

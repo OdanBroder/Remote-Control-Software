@@ -77,6 +77,7 @@ namespace Client.ViewModels
         public ICommand StopStreamingCommand { get; }
         public ICommand AcceptStreamingCommand { get; }
         public ICommand ShowFileTransferCommand { get; }
+        public ICommand LogoutCommand { get; }
 
         private readonly SendInputServices _sendInput;
         private InputMonitor _inputMonitor;
@@ -102,11 +103,32 @@ namespace Client.ViewModels
             StartStreamingCommand = new AsyncRelayCommand(async _ => await ExecuteStartStreaming());
             StopStreamingCommand = new AsyncRelayCommand(async _ => await ExecuteStopStreaming());
             AcceptStreamingCommand = new AsyncRelayCommand(async _ => await ExecuteAcceptStreaming());
-
+            LogoutCommand = new AsyncRelayCommand(async _ => await ExcuteLogout());
             ShowFileTransferCommand = new RelayCommand(OpenFileTransferWindow);
             _ = ExecuteStartSession();
         }
 
+        private Task ExcuteLogout()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                TokenStorage.ClearToken();
+
+                var loginView = new LoginView();
+                loginView.Show();
+
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (window is MainView)
+                    {
+                        window.Close();
+                        break;
+                    }
+                }
+            });
+
+            return Task.CompletedTask;
+        }
         private void OpenFileTransferWindow()
         {
             var vm = new FileTransferViewModel();
