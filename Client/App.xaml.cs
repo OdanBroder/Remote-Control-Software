@@ -32,16 +32,8 @@ namespace Client
         }
         protected void ApplicationStart(object sender, StartupEventArgs e)
         {
-            if (TokenStorage.HasToken())
-            {
-                var mainView = new MainView();
-                mainView.Show();
-            }
-            else
-            {
                 var loginView = new LoginView();
                 loginView.Show();
-            }
 
             // {
             //     Title = "Test View",

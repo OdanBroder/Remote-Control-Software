@@ -275,11 +275,27 @@ namespace Server.Services
 
         private int GetAvailablePort()
         {
-            var listener = new TcpListener(IPAddress.Any, 0);
-            listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            int startPort = 40000;
+            int endPort = 40200;
+            for (int port = startPort; port < endPort; port++)
+            {
+                try
+                {
+                    using (var listener = new TcpListener(IPAddress.Any, port))
+                    {
+                        listener.Start();
+                        listener.Stop();
+                        return port; // Found available port
+                    }
+                }
+                catch (SocketException)
+                {
+                    // Port is in use, try next
+                    continue;
+                }
+            }
+
+            throw new Exception($"No available ports found in range {startPort}-{endPort}.");
         }
 
         private async Task ListenForSender(string sessionId, CancellationToken cancellationToken)
