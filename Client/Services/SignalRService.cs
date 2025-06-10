@@ -729,7 +729,8 @@ namespace Client.Services
             if (_connection == null || _connection.State != HubConnectionState.Connected)
             {
                 Log.Error("SignalR connection is not established. State: {State}", _connection?.State);
-                throw new InvalidOperationException("SignalR connection is not established");
+                return;
+                //throw new InvalidOperationException("SignalR connection is not established");
             }
 
             try
@@ -1099,16 +1100,63 @@ namespace Client.Services
             GC.SuppressFinalize(this);
         }
 
-        protected async virtual void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (!_isDisposed)
             {
                 if (disposing)
                 {
-                    await StopStreaming();
-                    _webrtcClient?.Dispose();
-                    _capture?.Dispose();
-                    _connection?.DisposeAsync();
+                    try
+                    {
+                        // Stop streaming synchronously to avoid async issues during disposal
+                        StopStreaming().GetAwaiter().GetResult();
+                        
+                        // Clean up WebRTC resources
+                        if (pc != null)
+                        {
+                            pc.Close();
+                            pc.Dispose();
+                            pc = null;
+                        }
+
+                        if (_localVideoTrack != null)
+                        {
+                            _localVideoTrack.Dispose();
+                            _localVideoTrack = null;
+                        }
+
+                        if (_webrtcClient != null)
+                        {
+                            _webrtcClient.Dispose();
+                            _webrtcClient = null;
+                        }
+
+                        if (_capture != null)
+                        {
+                            _capture.Dispose();
+                            _capture = null;
+                        }
+
+                        // Clean up SignalR connection
+                        if (_connection != null)
+                        {
+                            _connection.StopAsync().GetAwaiter().GetResult();
+                            _connection.DisposeAsync().GetAwaiter().GetResult();
+                            _connection = null;
+                        }
+
+                        // Clean up streaming window
+                        if (streamingWindow != null)
+                        {
+                            streamingWindow.Close();
+                            _writeableBitmap = null;
+                            streamingWindow = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error during SignalRService disposal");
+                    }
                 }
                 _isDisposed = true;
             }

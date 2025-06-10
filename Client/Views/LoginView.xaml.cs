@@ -12,11 +12,14 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Client.Views;
+using Serilog;
 
 namespace Client.Views
 {
     public partial class LoginView : Window
     {
+        private bool _isClosing = false;
+
         public LoginView()
         {
             InitializeComponent();
@@ -35,13 +38,41 @@ namespace Client.Views
 
         private void btnClose_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
+            Close();
         }
+
         private void OnGoToRegister(object sender, RoutedEventArgs e)
         {
             var register = new RegisterView();
             register.Show();
             this.Close();
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_isClosing)
+            {
+                _isClosing = true;
+                try
+                {
+                    Log.Information("Login window closing...");
+
+                    // Clean up ViewModel resources
+                    if (DataContext is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+
+                    // Force cleanup of any remaining resources
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error during login window closing");
+                }
+            }
+            base.OnClosing(e);
         }
     }
 }

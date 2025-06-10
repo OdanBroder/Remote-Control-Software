@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using Client.Views;
 using Serilog;
+using System.Diagnostics;
+
 namespace Client
 {
     /// <summary>
@@ -24,6 +26,9 @@ namespace Client
                 .CreateLogger();
 
             Log.Information("Application initialized.");
+
+            // Subscribe to application exit event
+            this.Exit += App_Exit;
         }
         protected void ApplicationStart(object sender, StartupEventArgs e)
         {
@@ -46,6 +51,49 @@ namespace Client
             //     WindowStartupLocation = WindowStartupLocation.CenterScreen
             // };
             // window.Show();
+        }
+
+        private void App_Exit(object sender, ExitEventArgs e)
+        {
+            try
+            {
+                Log.Information("Application shutting down...");
+
+                // Clean up any remaining windows
+                foreach (Window window in Windows)
+                {
+                    try
+                    {
+                        if (window.DataContext is IDisposable disposable)
+                        {
+                            disposable.Dispose();
+                        }
+                        window.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error closing window");
+                    }
+                }
+
+                // Force cleanup of any remaining processes
+                var currentProcess = Process.GetCurrentProcess();
+                foreach (ProcessThread thread in currentProcess.Threads)
+                {
+                    try
+                    {
+                        thread.Dispose();
+                    }
+                    catch { }
+                }
+
+                // Flush and close Serilog
+                Log.CloseAndFlush();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error during application shutdown");
+            }
         }
     }
 }

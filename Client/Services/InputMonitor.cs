@@ -400,19 +400,39 @@ namespace Client.Services
             {
                 if (disposing)
                 {
-                    // Make sure to re-enable input when disposing
-                    if (_isLocalInputDisabled)
+                    try
                     {
-                        BlockInput(false);
-
-                        // Remove the low-level keyboard hook
-                        if (_hookID != IntPtr.Zero)
+                        // Make sure to re-enable input when disposing
+                        if (_isLocalInputDisabled)
                         {
-                            UnhookWindowsHookEx(_hookID);
-                            _hookID = IntPtr.Zero;
+                            BlockInput(false);
+
+                            // Remove the low-level keyboard hook
+                            if (_hookID != IntPtr.Zero)
+                            {
+                                UnhookWindowsHookEx(_hookID);
+                                _hookID = IntPtr.Zero;
+                            }
+
+                            // Show cursor and restore position
+                            ShowCursor(true);
+                            if (_originalCursorPos.X != 0 || _originalCursorPos.Y != 0)
+                            {
+                                SetCursorPos(_originalCursorPos.X, _originalCursorPos.Y);
+                            }
                         }
+
+                        // Stop monitoring and clean up resources
+                        Stop();
+
+                        // Clean up any remaining resources
+                        _lastMouseMoveTime?.Stop();
+                        _lastMouseMoveTime = null;
                     }
-                    Stop();
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error during InputMonitor disposal: {ex.Message}");
+                    }
                 }
                 _isDisposed = true;
             }

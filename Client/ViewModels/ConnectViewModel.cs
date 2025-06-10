@@ -18,13 +18,14 @@ using System.Linq;
 
 namespace Client.ViewModels
 {
-    public class ConnectViewModel : INotifyPropertyChanged
+    public class ConnectViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly SessionService _sessionService;
         private readonly SignalRService _signalRService;
         private string _session;
         private string _joinSessionId;
         private string _errorMessage;
+        private bool _isDisposed;
         public string Session
         {
             get => _session;
@@ -489,6 +490,54 @@ namespace Client.ViewModels
         protected void OnPropertyChanged(string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_isDisposed)
+            {
+                if (disposing)
+                {
+                    try
+                    {
+                        // Clean up input monitor
+                        if (_inputMonitor != null)
+                        {
+                            _inputMonitor.Dispose();
+                            _inputMonitor = null;
+                        }
+
+                        // Clean up SignalR service
+                        if (_signalRService != null)
+                        {
+                            _signalRService.OnStopInput -= OnStoppedStreaming;
+                            _signalRService.Dispose();
+                        }
+
+                        // Clean up send input service
+                        if (_sendInput != null)
+                        {
+                            _sendInput.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error during ConnectViewModel disposal");
+                    }
+                }
+                _isDisposed = true;
+            }
+        }
+
+        ~ConnectViewModel()
+        {
+            Dispose(false);
         }
     }
 }

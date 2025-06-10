@@ -9,12 +9,13 @@ using System.Text;
 
 namespace Client.Services
 {
-    public class SendInputServices
+    public class SendInputServices : IDisposable
     {
         private readonly SignalRService _signalRService;
         private readonly HttpClient _httpClient;
         private readonly string baseUrl = AppSettings.BaseApiUri + "/api";
         private readonly string _baseUrl;
+        private bool _isDisposed;
 
         public SendInputServices(SignalRService signalRService)
         {
@@ -88,6 +89,36 @@ namespace Client.Services
                     throw new Exception("Failed to send input through both SignalR and HTTP", httpEx);
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_isDisposed)
+            {
+                if (disposing)
+                {
+                    try
+                    {
+                        _httpClient?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error during SendInputServices disposal: {ex.Message}");
+                    }
+                }
+                _isDisposed = true;
+            }
+        }
+
+        ~SendInputServices()
+        {
+            Dispose(false);
         }
     }
 }
