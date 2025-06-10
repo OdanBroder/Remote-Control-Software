@@ -32,7 +32,7 @@ namespace Client.Views
                     vm.RequestClosed += result =>
                     {
                         DialogResult = result;
-                        Close();
+                        Dispatcher.Invoke(Close);
                     };
                 }
             };

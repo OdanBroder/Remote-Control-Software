@@ -80,11 +80,13 @@ public class FileReceiveRequestViewModel : INotifyPropertyChanged
                 port: port,
                 savePath: savePath,
                 fileSize: FileSize,
-                onProgress: p => Progress = p,
+                onProgress: p => Progress = (int)(p),
                 token: CancellationToken.None
             );
             Status = "Received!";
             RequestClosed?.Invoke(true);
+
+            //Dong ngay tai dai.
         }
         catch (Exception ex)
         {

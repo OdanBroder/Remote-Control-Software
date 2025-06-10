@@ -14,12 +14,13 @@
             <GradientStop Color="#fafcff" Offset="0"/>
             <GradientStop Color="#e8eefd" Offset="1"/>
         </LinearGradientBrush>
-        <LinearGradientBrush x:Key="Accent" StartPoint="0,0" EndPoint="1,0">
+        <LinearGradientBrush x:Key="AccentBrush" StartPoint="0,0" EndPoint="1,0">
             <GradientStop Color="#6a82fb" Offset="0" />
             <GradientStop Color="#fc5c7d" Offset="1" />
         </LinearGradientBrush>
         <DropShadowEffect x:Key="Shadow" BlurRadius="18" ShadowDepth="0" Color="#405585" Opacity="0.18"/>
     </Window.Resources>
+
     <Grid Background="#00000000">
         <Border
             Background="{StaticResource DialogBg}"
@@ -31,7 +32,7 @@
             MouseLeftButtonDown="Border_MouseLeftButtonDown">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
-                    <fa:IconImage Icon="FileAlt" Width="32" Height="32" Margin="0,0,14,0" Foreground="{StaticResource Accent}" />
+                    <fa:IconImage Icon="FileAlt" Width="32" Height="32" Margin="0,0,14,0" Foreground="{StaticResource AccentBrush}" />
                     <TextBlock Text="File Transfer Request"
                                FontSize="22"
                                FontWeight="Bold"
@@ -49,6 +50,25 @@
                         <Run Text="File Size: " FontWeight="SemiBold"/>
                         <Run Text="{Binding FileSize, StringFormat={}{0:N0} bytes}" Foreground="#848bc3"/>
                     </TextBlock>
+
+                    <!-- Updated ProgressBar block -->
+                    <Border Height="28" CornerRadius="14" Background="#f1f3f6" Margin="0,0,0,12" Padding="3">
+                        <Grid>
+                            <ProgressBar Minimum="0"
+                                         Maximum="100"
+                                         Value="{Binding Progress}"
+                                         Height="22"
+                                         Background="#f1f3f6"
+                                         Foreground="{StaticResource AccentBrush}"
+                                         BorderBrush="{x:Null}"/>
+                            <TextBlock Text="{Binding Progress, StringFormat='Progress: {0}%'}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Bold"
+                                       Foreground="#575F6B"
+                                       FontSize="13"/>
+                        </Grid>
+                    </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -58,7 +78,7 @@
                             Command="{Binding AcceptCommand}"
                             Margin="0,0,10,0"
                             FontWeight="Bold"
-                            Background="{StaticResource Accent}"
+                            Background="{StaticResource AccentBrush}"
                             Foreground="White"
                             BorderThickness="0"
                             Cursor="Hand">
@@ -76,6 +96,7 @@
                             </Style>
                         </Button.Style>
                     </Button>
+
                     <Button Content="Reject"
                             Width="88"
                             Height="36"
