@@ -6,176 +6,391 @@
     xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
     xmlns:local="clr-namespace:Client.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    d:DesignHeight="500"
-    d:DesignWidth="800"
+    d:DesignHeight="900"
+    d:DesignWidth="1400"
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- Rounded TextBox -->
-        <Style x:Key="RoundedTextBox" TargetType="TextBox">
+        <!-- Modern Card Style -->
+        <Style x:Key="ModernCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="20" Color="#1A000000" Direction="270" ShadowDepth="8"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Enhanced TextBox Style -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="#E1E5E9"/>
+            <Setter Property="Background" Value="#FAFBFC"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="15">
+                                CornerRadius="12">
                             <ScrollViewer x:Name="PART_ContentHost"
                                           Margin="{TemplateBinding Padding}"
                                           VerticalAlignment="Center" />
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="#7E57C2"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#7E57C2"/>
+                                <Setter Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Button Base Template -->
-        <ControlTemplate x:Key="RoundedTemplate" TargetType="Button">
-            <Border Background="{TemplateBinding Background}"
-                    CornerRadius="12"
-                    SnapsToDevicePixels="True">
-                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-        </ControlTemplate>
+        <!-- Icon Button Style -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Background" Value="#F8F9FA"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="10"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E9ECEF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#DEE2E6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- Base Button Style -->
-        <Style x:Key="BaseActionButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="130"/>
-            <Setter Property="Height" Value="44"/>
+        <!-- Primary Button Style -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Padding" Value="24,0"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template" Value="{StaticResource RoundedTemplate}"/>
-        </Style>
-
-        <!-- Specific Button Styles -->
-        <Style x:Key="UnifiedActionButton" BasedOn="{StaticResource BaseActionButtonStyle}" TargetType="Button">
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#7E57C2" Offset="1" />
-                        <GradientStop Color="#9575CD" Offset="0" />
+                        <GradientStop Color="#7E57C2" Offset="0" />
+                        <GradientStop Color="#9575CD" Offset="1" />
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background">
-                        <Setter.Value>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#9575CD" Offset="0" />
-                                <GradientStop Color="#B39DDB" Offset="1" />
-                            </LinearGradientBrush>
-                        </Setter.Value>
-                    </Setter>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="14"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#9575CD" Offset="0" />
+                                            <GradientStop Color="#B39DDB" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#6A4C93" Offset="0" />
+                                            <GradientStop Color="#8561C5" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        
+
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Padding" Value="24,0"/>
+            <Setter Property="Foreground" Value="#495057"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="#E1E5E9"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F8F9FA"/>
+                                <Setter Property="BorderBrush" Value="#7E57C2"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#E9ECEF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Danger Button Style -->
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Padding" Value="24,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#E53E3E" Offset="0" />
+                        <GradientStop Color="#F56565" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="14"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#F56565" Offset="0" />
+                                            <GradientStop Color="#FC8181" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <Border BorderBrush="Transparent" CornerRadius="15" ClipToBounds="True" BorderThickness="0" SnapsToDevicePixels="True" Background="Transparent">
-        <Grid>
-            <!-- Gradient background -->
-            <Grid.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.7">
-                    <GradientStop Offset="0" Color="{StaticResource secondaryBackColor1}" />
-                    <GradientStop Offset="0.7" Color="{StaticResource secondaryBackColor2}" />
-                </LinearGradientBrush>
-            </Grid.Background>
+    <!-- Main Container -->
+    <Grid>
+        <!-- Modern Gradient Background -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Offset="0" Color="#F7FAFC" />
+                <GradientStop Offset="0.5" Color="#EDF2F7" />
+                <GradientStop Offset="1" Color="#E2E8F0" />
+            </LinearGradientBrush>
+        </Grid.Background>
 
-            <!-- Session Info -->
-            <Border Width="460" Height="41" Margin="0,43,0,0" Padding="10"
-                    HorizontalAlignment="Center" VerticalAlignment="Top"
-                    Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="2" CornerRadius="15">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+        <!-- Content Container -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel MaxWidth="600" Margin="40" HorizontalAlignment="Center">
+                
+                <!-- Header -->
+                <StackPanel Margin="0,0,0,40">
+                    <TextBlock Text="Remote Connection Hub" 
+                               FontSize="32" 
+                               FontWeight="Bold" 
+                               Foreground="#2D3748"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,8"/>
+                    <TextBlock Text="Connect, stream, and share files seamlessly" 
+                               FontSize="16" 
+                               Foreground="#718096"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
 
-                    <TextBlock Grid.Column="0"
-                               HorizontalAlignment="Left"
-                               VerticalAlignment="Center"
-                               FontSize="14"
-                               FontWeight="Bold"
-                               TextWrapping="Wrap">
-                        <Run Text="Your Session ID: " />
-                        <Run Text="{Binding Session}" />
-                    </TextBlock>
+                <!-- Session Information Card -->
+                <Border Style="{StaticResource ModernCard}" Margin="0,0,0,24">
+                    <StackPanel>
+                        <TextBlock Text="Your Session" 
+                                   FontSize="18" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="#2D3748"
+                                   Margin="0,0,0,16"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="1"
-                            Width="18" Height="18"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Command="{Binding CopySessionCommand}"
-                            ToolTip="Copy">
-                        <fa:IconImage Width="16" Height="16" Icon="Clone"/>
-                    </Button>
+                            <TextBlock Grid.Column="0"
+                                       Text="Session ID:"
+                                       FontSize="14"
+                                       FontWeight="Medium"
+                                       Foreground="#4A5568"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
 
-                    <Button Grid.Column="2"
-                            Width="18" Height="18"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Command="{Binding ReconnectCommand}"
-                            ToolTip="Reconnect">
-                        <fa:IconImage Width="16" Height="16" Icon="Refresh"/>
-                    </Button>
-                </Grid>
-            </Border>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Session}"
+                                       FontSize="14"
+                                       FontFamily="Consolas"
+                                       FontWeight="SemiBold"
+                                       Foreground="#2D3748"
+                                       VerticalAlignment="Center"
+                                       Background="#F7FAFC"
+                                       Padding="12,8"
+                                       TextWrapping="Wrap"/>
 
-            <!-- Join Session -->
-            <Border Width="490" Height="41" Margin="0,90,0,0" Padding="10"
-                    HorizontalAlignment="Center" VerticalAlignment="Top"
-                    Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="2" CornerRadius="15">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource IconButton}"
+                                    Command="{Binding CopySessionCommand}"
+                                    ToolTip="Copy Session ID"
+                                    Margin="8,0,0,0">
+                                <fa:IconImage Width="18" Height="18" Icon="Clone" Foreground="#7E57C2"/>
+                            </Button>
 
-                    <TextBlock Grid.Column="0"
-                               VerticalAlignment="Center"
-                               FontSize="14"
-                               FontWeight="Bold">
-                        <Run Text="Enter Remote Session ID:" />
-                    </TextBlock>
+                            <Button Grid.Column="3"
+                                    Style="{StaticResource IconButton}"
+                                    Command="{Binding ReconnectCommand}"
+                                    ToolTip="Reconnect"
+                                    Margin="8,0,0,0">
+                                <fa:IconImage Width="18" Height="18" Icon="Refresh" Foreground="#7E57C2"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
-                    <TextBox Grid.Column="1"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             FontWeight="Bold"
-                             FontSize="14"
-                             VerticalContentAlignment="Center"
-                             MaxLength="36"
-                             Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}" />
+                <!-- Join Session Card -->
+                <Border Style="{StaticResource ModernCard}" Margin="0,0,0,32">
+                    <StackPanel>
+                        <TextBlock Text="Join Remote Session" 
+                                   FontSize="18" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="#2D3748"
+                                   Margin="0,0,0,16"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="2"
-                            Width="18" Height="18"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Command="{Binding JoinSessionCommand}">
-                        <fa:IconImage Width="16" Height="16" Icon="SignIn"/>
-                    </Button>
-                </Grid>
-            </Border>
+                            <TextBox Grid.Column="0"
+                                     Style="{StaticResource ModernTextBox}"
+                                     Text="{Binding JoinSessionId, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="36"
+                                     FontFamily="Consolas"
+                                     Tag="Enter remote session ID..."/>
 
-            <!-- Action Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
-                <Button Style="{StaticResource UnifiedActionButton}" Content="Start Streaming" Command="{Binding StartStreamingCommand}" Margin="0,0,50,0" />
-                <Button Style="{StaticResource UnifiedActionButton}" Content="Stop Streaming" Command="{Binding StopStreamingCommand}" Margin="0,0,50,0"/>
-                <Button Style="{StaticResource UnifiedActionButton}" Content="Accept Streaming" Command="{Binding AcceptStreamingCommand}"/>
+                            <Button Grid.Column="1"
+                                    Style="{StaticResource IconButton}"
+                                    Command="{Binding JoinSessionCommand}"
+                                    ToolTip="Join Session"
+                                    Margin="12,0,0,0"
+                                    Width="48"
+                                    Height="48">
+                                <fa:IconImage Width="20" Height="20" Icon="SignIn" Foreground="#7E57C2"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Streaming Controls -->
+                <Border Style="{StaticResource ModernCard}" Margin="0,0,0,24">
+                    <StackPanel>
+                        <TextBlock Text="Streaming Controls" 
+                                   FontSize="18" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="#2D3748"
+                                   Margin="0,0,0,20"/>
+                        
+                        <UniformGrid Columns="3" 
+                                     HorizontalAlignment="Center">
+                            <Button Style="{StaticResource PrimaryButton}" 
+                                    Content="Start Streaming" 
+                                    Command="{Binding StartStreamingCommand}" 
+                                    Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource SecondaryButton}" 
+                                    Content="Stop Streaming" 
+                                    Command="{Binding StopStreamingCommand}"
+                                    Margin="6,0"/>
+                            <Button Style="{StaticResource PrimaryButton}" 
+                                    Content="Accept Stream" 
+                                    Command="{Binding AcceptStreamingCommand}"
+                                    Margin="12,0,0,0"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- File & Connection Controls -->
+                <Border Style="{StaticResource ModernCard}">
+                    <StackPanel>
+                        <TextBlock Text="File Transfer &amp; Connection" 
+                                   FontSize="18" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="#2D3748"
+                                   Margin="0,0,0,20"/>
+                        
+                        <UniformGrid Columns="2" 
+                                     HorizontalAlignment="Center">
+                            <Button Style="{StaticResource SecondaryButton}" 
+                                    Content="📁 Send File" 
+                                    Command="{Binding ShowFileTransferCommand}"
+                                    Margin="0,0,12,0"/>
+                            <Button Style="{StaticResource DangerButton}" 
+                                    Content="Disconnect" 
+                                    Command="{Binding DisconnectCommand}"
+                                    Margin="12,0,0,0"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,200,0,0">
-                <Button Style="{StaticResource UnifiedActionButton}" Content="Send File" Command="{Binding ShowFileTransferCommand}" Margin="0,0,50,0"/>
-                <Button Style="{StaticResource UnifiedActionButton}" Content="Disconnect" Command="{Binding DisconnectCommand}" />
-            </StackPanel>
-        </Grid>
-    </Border>
+        </ScrollViewer>
+    </Grid>
 </UserControl>
