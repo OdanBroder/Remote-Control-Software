@@ -27,11 +27,17 @@ namespace Client
         }
         protected void ApplicationStart(object sender, StartupEventArgs e)
         {
-            var mainView = new MainView();
-            mainView.Show();
-            // var loginView = new LoginView();
-            // loginView.Show();
-            // var window = new Window
+            if (TokenStorage.HasToken())
+            {
+                var mainView = new MainView();
+                mainView.Show();
+            }
+            else
+            {
+                var loginView = new LoginView();
+                loginView.Show();
+            }
+
             // {
             //     Title = "Test View",
             //     Content = new TestView(),

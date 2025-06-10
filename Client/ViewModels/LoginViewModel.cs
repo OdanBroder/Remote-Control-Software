@@ -10,6 +10,7 @@ using Client.Services;
 using Client.Helpers;
 using Client.Views;
 using System.Linq;
+using System.Security.Authentication.ExtendedProtection;
 
 namespace Client.ViewModels
 {

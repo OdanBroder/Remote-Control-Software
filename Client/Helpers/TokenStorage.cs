@@ -47,6 +47,10 @@ public static class TokenStorage
             return null;
         }
     }
+    public static bool HasToken()
+    {
+        return File.Exists(TokenFilePath);
+    }
 
     public static void ClearToken()
     {
