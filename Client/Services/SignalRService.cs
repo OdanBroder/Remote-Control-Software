@@ -178,7 +178,7 @@ namespace Client.Services
 
                 while (retryCount < maxRetries)
                 {
-                    if (_connectionEstablished && _connection.State == HubConnectionState.Connected)
+                    if (_connection!=null&&_connectionEstablished && _connection.State == HubConnectionState.Connected)
                     {
                         Log.Information("Connection is fully established and synchronized");
                         break;
@@ -189,8 +189,9 @@ namespace Client.Services
                     retryCount++;
                 }
 
-                if (!_connectionEstablished || _connection.State != HubConnectionState.Connected)
+                if (_connection!=null||!_connectionEstablished || _connection.State != HubConnectionState.Connected)
                 {
+                    return;
                     throw new Exception($"Failed to establish connection after {maxRetries} attempts. Current state: {_connection.State}, Connection established: {_connectionEstablished}");
                 }
 
@@ -1109,7 +1110,7 @@ namespace Client.Services
                     try
                     {
                         // Stop streaming synchronously to avoid async issues during disposal
-                        StopStreaming().GetAwaiter().GetResult();
+                        StopStreaming();
                         
                         // Clean up WebRTC resources
                         if (pc != null)
